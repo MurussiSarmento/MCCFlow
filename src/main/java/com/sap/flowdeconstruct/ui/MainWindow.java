@@ -297,7 +297,7 @@ public class MainWindow extends JFrame implements KeyListener {
                     return false;
                 } else if (e.getID() == KeyEvent.KEY_TYPED) {
                     keyTyped(e);
-                    return false;
+                    return true;
                 }
             }
             return false;
@@ -356,9 +356,6 @@ public class MainWindow extends JFrame implements KeyListener {
             case KeyEvent.VK_ENTER:
                 if (ctrl) {
                     drillDownToSubflow();
-                } else if (currentFlow != null && currentFlow.getSelectedNode() != null) {
-                    // Start editing the selected node instead of creating a new one
-                    startEditingSelectedNode();
                 }
                 break;
                 
@@ -429,6 +426,12 @@ public class MainWindow extends JFrame implements KeyListener {
                     case "projectClosed":
                         System.out.println("MainWindow: Project closed event");
                         setCurrentFlow(null);
+                        break;
+                    case "nodeModified":
+                        System.out.println("MainWindow: Node modified event");
+                        if (canvas != null) {
+                            canvas.repaint();
+                        }
                         break;
                 }
             });
@@ -525,12 +528,13 @@ public class MainWindow extends JFrame implements KeyListener {
                 
             case KeyEvent.VK_ENTER:
                 System.out.println("MainWindow.keyPressed: ENTER key detected");
-                if (ctrl) {
+                // Check if a node is currently being edited
+                if (canvas != null && canvas.isEditingNode()) {
+                    System.out.println("MainWindow.keyPressed: Node is being edited, letting canvas handle Enter");
+                    canvas.handleKeyTyped('\n');
+                } else if (ctrl) {
                     System.out.println("MainWindow.keyPressed: Ctrl+Enter - drilling down");
                     drillDownToSubflow();
-                } else if (currentFlow != null && currentFlow.getSelectedNode() != null) {
-                    System.out.println("MainWindow.keyPressed: Enter - starting to edit selected node");
-                    startEditingSelectedNode();
                 }
                 break;
                 
@@ -550,18 +554,26 @@ public class MainWindow extends JFrame implements KeyListener {
                 if (ctrl) {
                     System.out.println("MainWindow.keyPressed: Ctrl+E - exporting");
                     exportFlow();
-                } else if (currentFlow != null && currentFlow.getSelectedNode() != null) {
-                    System.out.println("MainWindow.keyPressed: E - editing node");
-                    currentFlow.getSelectedNode().setEditing(true);
-                    canvas.repaint();
+                } else if (currentFlow != null && currentFlow.getSelectedNode() != null && !canvas.isEditingNode()) {
+                    System.out.println("MainWindow.keyPressed: E - starting to edit node");
+                    startEditingSelectedNode();
+                }
+                break;
+                
+            case KeyEvent.VK_BACK_SPACE:
+                System.out.println("MainWindow.keyPressed: BACKSPACE key detected");
+                // Check if a node is currently being edited
+                if (canvas != null && canvas.isEditingNode()) {
+                    System.out.println("MainWindow.keyPressed: Node is being edited, letting canvas handle Backspace");
+                    canvas.handleKeyTyped('\b');
                 }
                 break;
                 
             case KeyEvent.VK_ESCAPE:
                 System.out.println("MainWindow.keyPressed: ESCAPE key detected");
-                if (currentFlow != null && currentFlow.getSelectedNode() != null && currentFlow.getSelectedNode().isEditing()) {
-                    currentFlow.getSelectedNode().setEditing(false);
-                    canvas.repaint();
+                if (canvas.isEditingNode()) {
+                    System.out.println("MainWindow.keyPressed: Node is being edited, calling handleEscapeKey");
+                    canvas.handleEscapeKey();
                 } else {
                     handleEscape();
                 }
@@ -604,7 +616,7 @@ public class MainWindow extends JFrame implements KeyListener {
     public void keyTyped(KeyEvent e) {
         // If a node is selected and user types a character, start editing automatically
         if (currentFlow != null && currentFlow.getSelectedNode() != null && 
-            !currentFlow.getSelectedNode().isEditing()) {
+            !canvas.isEditingNode()) {
             
             char keyChar = e.getKeyChar();
             
@@ -617,6 +629,12 @@ public class MainWindow extends JFrame implements KeyListener {
                 if (canvas != null) {
                     canvas.handleKeyTyped(keyChar);
                 }
+            }
+        } else if (canvas != null && canvas.isEditingNode()) {
+            // If already editing, just pass the character to canvas
+            char keyChar = e.getKeyChar();
+            if (!Character.isISOControl(keyChar)) {
+                canvas.handleKeyTyped(keyChar);
             }
         }
     }
@@ -649,6 +667,10 @@ public class MainWindow extends JFrame implements KeyListener {
         }
         if (currentFlow == null || currentFlow.getSelectedNode() == null) {
             System.out.println("ERROR: no selected node");
+            return;
+        }
+        if (canvas.isEditingNode()) {
+            System.out.println("MainWindow.startEditingSelectedNode: Already editing, skipping");
             return;
         }
         System.out.println("Starting to edit selected node: " + currentFlow.getSelectedNode().getText());

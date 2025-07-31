@@ -257,7 +257,16 @@ public class ProjectManager {
         if (project != null) {
             project.addStateListener((diagram, event, oldValue, newValue) -> {
                 hasUnsavedChanges = true;
-                notifyListeners("projectModified", null, diagram);
+                switch (event) {
+                    case "nodeModified":
+                        // A specific node was modified
+                        notifyListeners("nodeModified", newValue, diagram);
+                        break;
+                    default:
+                        // For other events, notify that the project as a whole was modified
+                        notifyListeners("projectModified", null, diagram);
+                        break;
+                }
             });
         }
         

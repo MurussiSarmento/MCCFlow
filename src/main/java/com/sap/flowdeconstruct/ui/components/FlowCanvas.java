@@ -81,7 +81,10 @@ public class FlowCanvas extends JPanel implements MouseListener, MouseMotionList
                     if ("nodeAdded".equals(event) || "nodeRemoved".equals(event)) {
                         autoLayoutNodes();
                     }
-                    repaint();
+                    // Don't repaint during text editing to avoid interrupting the editing process
+                    if (editingNode == null || !"nodeModified".equals(event)) {
+                        repaint();
+                    }
                 });
             });
         } else {
@@ -382,6 +385,10 @@ public class FlowCanvas extends JPanel implements MouseListener, MouseMotionList
         startEditingNode(selectedNode);
     }
     
+    public boolean isEditingNode() {
+        return editingNode != null;
+    }
+    
     private FlowNode findNextNode(FlowNode current, int direction) {
         if (flowDiagram == null) return null;
         
@@ -430,9 +437,11 @@ public class FlowCanvas extends JPanel implements MouseListener, MouseMotionList
     }
     
     private void startEditingNode(FlowNode node) {
+        System.out.println("FlowCanvas.startEditingNode: Starting edit for node: '" + node.getText() + "'");
         editingNode = node;
-        // Start with empty text to allow user to type new text from scratch
-        editingText = "";
+        // Start with current node text to allow editing existing text
+        editingText = node.getText() != null ? node.getText() : "";
+        System.out.println("FlowCanvas.startEditingNode: editingText initialized to: '" + editingText + "'");
         
         // Add key listener for text editing
         requestFocusInWindow();
@@ -440,10 +449,13 @@ public class FlowCanvas extends JPanel implements MouseListener, MouseMotionList
     
     private void finishEditingNode() {
         if (editingNode != null) {
+            System.out.println("FlowCanvas.finishEditingNode: Finishing edit for node with text: '" + editingText + "'");
             // If user leaves text empty, set it to empty string (not "New Node")
             if (editingText.trim().isEmpty()) {
+                System.out.println("FlowCanvas.finishEditingNode: Setting empty text");
                 editingNode.setText("");
             } else {
+                System.out.println("FlowCanvas.finishEditingNode: Setting text to: '" + editingText + "'");
                 editingNode.setText(editingText);
             }
             editingNode = null;
@@ -547,17 +559,22 @@ public class FlowCanvas extends JPanel implements MouseListener, MouseMotionList
     // Handle text input for editing
     public void handleKeyTyped(char keyChar) {
         if (editingNode != null) {
+            System.out.println("FlowCanvas.handleKeyTyped: Processing key '" + keyChar + "' (code: " + (int)keyChar + ")");
             if (keyChar == '\b') { // Backspace
                 if (!editingText.isEmpty()) {
                     editingText = editingText.substring(0, editingText.length() - 1);
+                    System.out.println("FlowCanvas.handleKeyTyped: After backspace, editingText: '" + editingText + "'");
                 }
             } else if (keyChar == '\n' || keyChar == '\r') { // Enter
+                System.out.println("FlowCanvas.handleKeyTyped: Enter pressed, finishing edit");
                 finishEditingNode();
             } else if (Character.isISOControl(keyChar)) {
                 // Ignore other control characters
+                System.out.println("FlowCanvas.handleKeyTyped: Ignoring control character");
                 return;
             } else {
                 editingText += keyChar;
+                System.out.println("FlowCanvas.handleKeyTyped: After adding char, editingText: '" + editingText + "'");
             }
             repaint();
         }

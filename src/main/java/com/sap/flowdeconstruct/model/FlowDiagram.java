@@ -22,6 +22,8 @@ public class FlowDiagram {
     private FlowNode selectedNode;
     @JsonIgnore
     private List<DiagramStateListener> listeners;
+    @JsonIgnore
+    private final FlowNode.NodeStateListener nodeStateListener;
     
     public FlowDiagram() {
         this.id = UUID.randomUUID().toString();
@@ -31,6 +33,12 @@ public class FlowDiagram {
         this.createdAt = new Date();
         this.modifiedAt = new Date();
         this.listeners = new ArrayList<>();
+        this.nodeStateListener = (n, property, oldValue, newValue) -> {
+            if ("text".equals(property) || "notes".equals(property) || "position".equals(property)) {
+                updateModifiedTime();
+                notifyListeners("nodeModified", n, property);
+            }
+        };
     }
     
     public FlowDiagram(String name) {
@@ -61,7 +69,20 @@ public class FlowDiagram {
     }
     
     public void setNodes(List<FlowNode> nodes) {
+        // Clear existing listeners to prevent duplicates
+        for (FlowNode oldNode : this.nodes) {
+            oldNode.removeStateListener(this.nodeStateListener);
+        }
+
         this.nodes = new ArrayList<>(nodes);
+        
+        // Add listeners to new nodes
+        for (FlowNode node : this.nodes) {
+            if (node != null) {
+                node.addStateListener(this.nodeStateListener);
+            }
+        }
+        
         updateModifiedTime();
         notifyListeners("nodes", null, this.nodes);
     }
@@ -134,6 +155,10 @@ public class FlowDiagram {
     public void addNode(FlowNode node) {
         if (node != null && !nodes.contains(node)) {
             nodes.add(node);
+            
+            // Add listener to track node changes
+            node.addStateListener(this.nodeStateListener);
+            
             updateModifiedTime();
             notifyListeners("nodeAdded", null, node);
         }
@@ -149,10 +174,15 @@ public class FlowDiagram {
         boolean removed = nodes.remove(node);
         
         if (removed) {
+            // Remove listener
+            node.removeStateListener(this.nodeStateListener);
+
             // Clear selection if this was the selected node
             if (selectedNode == node) {
                 setSelectedNode(null);
             }
+            
+
             
             updateModifiedTime();
             notifyListeners("nodeRemoved", node, null);

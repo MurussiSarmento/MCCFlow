@@ -106,8 +106,15 @@ if (!(Test-Path $libTargetDir)) {
 # Copy dependencies to target/lib
 foreach ($jar in $jars) {
     $jarName = Split-Path $jar -Leaf
-    Write-Host "Copying $jarName to lib directory..." -ForegroundColor Cyan
-    Copy-Item -Path $jar -Destination "$libTargetDir\$jarName" -Force
+    $destPath = "$libTargetDir\$jarName"
+    
+    # Only copy if source and destination are different
+    if ($jar -ne $destPath) {
+        Write-Host "Copying $jarName to lib directory..." -ForegroundColor Cyan
+        Copy-Item -Path $jar -Destination $destPath -Force
+    } else {
+        Write-Host "$jarName already exists in target/lib, skipping..." -ForegroundColor Cyan
+    }
 }
 
 # Create JAR with classes only
