@@ -73,10 +73,18 @@ try {
 
 # Create manifest file
 Write-Host "Creating manifest..." -ForegroundColor Yellow
+$jacksonVersion = "2.15.2"
+$classPathEntries = @(
+    "lib/jackson-core-$jacksonVersion.jar",
+    "lib/jackson-databind-$jacksonVersion.jar",
+    "lib/jackson-annotations-$jacksonVersion.jar"
+)
+$classPath = ($classPathEntries -join " ")
+
 $manifestContent = @"
 Manifest-Version: 1.0
 Main-Class: com.sap.flowdeconstruct.FlowDeconstructApp
-Class-Path: .
+Class-Path: $classPath
 "@
 
 $manifestDir = "target\META-INF"
@@ -86,44 +94,27 @@ if (!(Test-Path $manifestDir)) {
 
 $manifestContent | Out-File -FilePath "$manifestDir\MANIFEST.MF" -Encoding ASCII
 
-# Create JAR with dependencies
+# Create JAR (without extracting dependencies)
 Write-Host "Creating executable JAR..." -ForegroundColor Yellow
 
-# Extract dependencies
-$tempDir = "target\temp"
-if (Test-Path $tempDir) {
-    Remove-Item -Path $tempDir -Recurse -Force
+# Ensure lib directory exists in target
+$libTargetDir = "target\lib"
+if (!(Test-Path $libTargetDir)) {
+    New-Item -ItemType Directory -Path $libTargetDir -Force | Out-Null
 }
-New-Item -ItemType Directory -Path $tempDir -Force | Out-Null
 
-# Extract each JAR dependency
+# Copy dependencies to target/lib
 foreach ($jar in $jars) {
-    Write-Host "Extracting $(Split-Path $jar -Leaf)..." -ForegroundColor Cyan
-    Set-Location $tempDir
-    & jar -xf $jar
-    Set-Location "..\.."
+    $jarName = Split-Path $jar -Leaf
+    Write-Host "Copying $jarName to lib directory..." -ForegroundColor Cyan
+    Copy-Item -Path $jar -Destination "$libTargetDir\$jarName" -Force
 }
 
-# Copy compiled classes
-Write-Host "Copying compiled classes..." -ForegroundColor Cyan
-Copy-Item -Path "target\classes\*" -Destination $tempDir -Recurse -Force
-
-# Ensure META-INF directory exists in temp
-if (!(Test-Path "$tempDir\META-INF")) {
-    New-Item -ItemType Directory -Path "$tempDir\META-INF" -Force | Out-Null
-}
-
-# Copy manifest
-Copy-Item -Path "target\META-INF\MANIFEST.MF" -Destination "$tempDir\META-INF\MANIFEST.MF" -Force
-
-# Create final JAR
+# Create JAR with classes only
 Write-Host "Creating final JAR..." -ForegroundColor Yellow
-Set-Location $tempDir
-& jar -cfm "..\FlowDeconstruct.jar" "META-INF\MANIFEST.MF" .
+Set-Location "target\classes"
+& jar -cfm "..\FlowDeconstruct.jar" "..\META-INF\MANIFEST.MF" .
 Set-Location "..\.."
-
-# Clean up temp directory
-Remove-Item -Path $tempDir -Recurse -Force
 
 if (Test-Path "target\FlowDeconstruct.jar") {
     Write-Host "Executable JAR created successfully: target\FlowDeconstruct.jar" -ForegroundColor Green

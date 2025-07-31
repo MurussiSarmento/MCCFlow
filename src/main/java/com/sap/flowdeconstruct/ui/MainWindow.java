@@ -253,6 +253,8 @@ public class MainWindow extends JFrame implements KeyListener {
         // Shortcuts
         String[] shortcuts = {
             "Tab        - Create connected node",
+            "Enter      - Edit selected node",
+            "Type text  - Auto-edit selected node",
             "Ctrl+Enter - Drill down to subflow",
             "Ctrl+N     - Add note to selected node",
             "Ctrl+E     - Export flow",
@@ -288,9 +290,15 @@ public class MainWindow extends JFrame implements KeyListener {
         
         // Add global key event dispatcher to handle keys regardless of focus
         KeyboardFocusManager.getCurrentKeyboardFocusManager().addKeyEventDispatcher(e -> {
-            if (e.getID() == KeyEvent.KEY_PRESSED && isActive()) {
-                handleGlobalKeyPress(e);
-                return true; // Consume the event
+            if (isActive()) {
+                if (e.getID() == KeyEvent.KEY_PRESSED) {
+                    handleGlobalKeyPress(e);
+                    // Don't consume the event - let it propagate for keyTyped processing
+                    return false;
+                } else if (e.getID() == KeyEvent.KEY_TYPED) {
+                    keyTyped(e);
+                    return false;
+                }
             }
             return false;
         });
@@ -349,7 +357,8 @@ public class MainWindow extends JFrame implements KeyListener {
                 if (ctrl) {
                     drillDownToSubflow();
                 } else if (currentFlow != null && currentFlow.getSelectedNode() != null) {
-                    createNode();
+                    // Start editing the selected node instead of creating a new one
+                    startEditingSelectedNode();
                 }
                 break;
                 
@@ -520,8 +529,8 @@ public class MainWindow extends JFrame implements KeyListener {
                     System.out.println("MainWindow.keyPressed: Ctrl+Enter - drilling down");
                     drillDownToSubflow();
                 } else if (currentFlow != null && currentFlow.getSelectedNode() != null) {
-                    System.out.println("MainWindow.keyPressed: Enter - creating node");
-                    createNode();
+                    System.out.println("MainWindow.keyPressed: Enter - starting to edit selected node");
+                    startEditingSelectedNode();
                 }
                 break;
                 
@@ -593,7 +602,23 @@ public class MainWindow extends JFrame implements KeyListener {
     
     @Override
     public void keyTyped(KeyEvent e) {
-        // Not used
+        // If a node is selected and user types a character, start editing automatically
+        if (currentFlow != null && currentFlow.getSelectedNode() != null && 
+            !currentFlow.getSelectedNode().isEditing()) {
+            
+            char keyChar = e.getKeyChar();
+            
+            // Only start editing for printable characters (not control characters)
+            if (!Character.isISOControl(keyChar)) {
+                System.out.println("MainWindow.keyTyped: Auto-starting edit for character: " + keyChar);
+                startEditingSelectedNode();
+                
+                // Pass the character to the canvas to be processed
+                if (canvas != null) {
+                    canvas.handleKeyTyped(keyChar);
+                }
+            }
+        }
     }
     
     @Override
@@ -614,6 +639,20 @@ public class MainWindow extends JFrame implements KeyListener {
         }
         System.out.println("Calling canvas.createNode()");
         canvas.createNode();
+    }
+    
+    private void startEditingSelectedNode() {
+        System.out.println("MainWindow.startEditingSelectedNode() called");
+        if (canvas == null) {
+            System.out.println("ERROR: canvas is null");
+            return;
+        }
+        if (currentFlow == null || currentFlow.getSelectedNode() == null) {
+            System.out.println("ERROR: no selected node");
+            return;
+        }
+        System.out.println("Starting to edit selected node: " + currentFlow.getSelectedNode().getText());
+        canvas.startEditingSelectedNode();
     }
     
     private void drillDownToSubflow() {

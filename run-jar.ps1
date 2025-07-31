@@ -18,11 +18,16 @@ Write-Host "Launching FlowDeconstruct..." -ForegroundColor Yellow
 Write-Host "The application will start minimized in the system tray." -ForegroundColor Cyan
 Write-Host "Use Ctrl+Shift+F to show/hide the main window." -ForegroundColor Cyan
 
+# Change to target directory so classpath works correctly
+Set-Location "target"
+
 try {
-    & java -jar "target\FlowDeconstruct.jar"
+    & java -jar "FlowDeconstruct.jar"
 } catch {
     Write-Host "Failed to start FlowDeconstruct!" -ForegroundColor Red
     Write-Host "Error: $($_.Exception.Message)" -ForegroundColor Red
+} finally {
+    Set-Location ".."
 }
 
 Write-Host "FlowDeconstruct has exited." -ForegroundColor Yellow

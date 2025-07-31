@@ -1,13 +1,189 @@
-FlowDeconstruct: Documento de Design (design.md)Este documento descreve a linguagem visual, os componentes de interface e os fluxos de interação para a aplicação FlowDeconstruct. Ele serve como um complemento direto ao Documento de Requisitos de Produto (PRD) e deve ser usado como a fonte de verdade para todas as decisões de UI/UX.1.0 Filosofia de DesignA interface do FlowDeconstruct é governada por quatro princípios essenciais definidos no PRD:Velocidade Acima de Tudo: A interface deve ser instantaneamente responsiva. Animações devem ser mínimas, rápidas e com propósito (por exemplo, transições suaves entre fluxos), nunca atrapalhando o utilizador.Fluxo de Trabalho Centrado no Teclado: Cada ação principal deve ser realizável através de atalhos de teclado. O uso do rato é secundário. O design deve eliminar cliques desnecessários.Clareza no Caos: A estética é minimalista e de alto contraste (tema escuro) para reduzir a fadiga visual e focar a atenção do utilizador no fluxo que está a ser construído. A informação é a prioridade, não a decoração.Utilidade Focada: A interface é intencionalmente despojada de funcionalidades de diagramação complexas. Não há paletas de cores, bibliotecas de formas ou opções de formatação de texto avançadas. A simplicidade é a funcionalidade.2.0 Linguagem Visual (Restritiva)A aparência da aplicação deve seguir estritamente estas diretrizes para garantir consistência e aderência à filosofia de design.2.1 Paleta de Cores (Tema Escuro Obrigatório)ElementoCor (Hex)DescriçãoFundo da Tela#2d2d2dCor de fundo principal da aplicação.Nó (Padrão)#3a3a3aCor de fundo para um nó não selecionado.Texto (Padrão)#ccccccCor para todo o texto, incluindo nomes de nós e UI.Conector/Seta#5f9ea0Cor para as linhas e setas que conectam os nós.Destaque (Seleção)#00aaffUm brilho (glow) exterior aplicado a um nó selecionado.2.2 TipografiaFonte: A aplicação deve usar uma fonte monoespaçada para todos os elementos de texto. Fontes recomendadas (em ordem de preferência): Consolas, Fira Code, Source Code Pro. Isso garante alinhamento previsível e uma estética técnica e limpa.2.3 Estilo dos ComponentesBordas: Os nós e os painéis (como o de ajuda) devem ter bordas ligeiramente arredondadas (border-radius de 4px a 6px).Sombras: Evitar sombras projetadas. A profundidade é indicada pelo contraste de cor e, no caso do nó selecionado, pelo brilho exterior.3.0 Componentes da Interface3.1 Tela Principal (Canvas)A tela principal é o espaço de trabalho infinito onde os fluxos são construídos.Estado Vazio: Ao iniciar, a tela está vazia, exceto por uma mensagem de ajuda centralizada.Referência Visual: images/initial_state.pngStart mapping your flow
+# FlowDeconstruct: Visual Design Specification
+
+Este documento descreve a linguagem visual, os componentes de interface e os fluxos de interação para a aplicação FlowDeconstruct. Ele serve como um complemento direto ao Documento de Requisitos de Produto (PRD) e deve ser usado como a fonte de verdade para todas as decisões de UI/UX.
+
+## 1.0 Filosofia de Design
+
+A interface do FlowDeconstruct é governada por quatro princípios essenciais definidos no PRD:
+
+### Velocidade Acima de Tudo
+A interface deve ser instantaneamente responsiva. Animações devem ser mínimas, rápidas e com propósito (por exemplo, transições suaves entre fluxos), nunca atrapalhando o utilizador.
+
+### Fluxo de Trabalho Centrado no Teclado
+Cada ação principal deve ser realizável através de atalhos de teclado. O uso do rato é secundário. O design deve eliminar cliques desnecessários.
+
+### Clareza no Caos
+A estética é minimalista e de alto contraste (tema escuro) para reduzir a fadiga visual e focar a atenção do utilizador no fluxo que está a ser construído. A informação é a prioridade, não a decoração.
+
+### Utilidade Focada
+A interface é intencionalmente despojada de funcionalidades de diagramação complexas. Não há paletas de cores, bibliotecas de formas ou opções de formatação de texto avançadas. A simplicidade é a funcionalidade.
+
+## 2.0 Linguagem Visual (Restritiva)
+
+A aparência da aplicação deve seguir estritamente estas diretrizes para garantir consistência e aderência à filosofia de design.
+
+### 2.1 Paleta de Cores (Tema Escuro Obrigatório)
+
+| Elemento | Cor (Hex) | Descrição |
+|----------|-----------|-----------|
+| Fundo da Tela | `#2d2d2d` | Cor de fundo principal da aplicação |
+| Nó (Padrão) | `#3a3a3a` | Cor de fundo para um nó não selecionado |
+| Texto (Padrão) | `#cccccc` | Cor para todo o texto, incluindo nomes de nós e UI |
+| Conector/Seta | `#5f9ea0` | Cor para as linhas e setas que conectam os nós |
+| Destaque (Seleção) | `#00aaff` | Um brilho (glow) exterior aplicado a um nó selecionado |
+
+### 2.2 Tipografia
+
+**Fonte**: A aplicação deve usar uma fonte monoespaçada para todos os elementos de texto. Fontes recomendadas (em ordem de preferência): 
+- Consolas
+- Fira Code
+- Source Code Pro
+
+Isso garante alinhamento previsível e uma estética técnica e limpa.
+
+### 2.3 Estilo dos Componentes
+
+- **Bordas**: Os nós e os painéis (como o de ajuda) devem ter bordas ligeiramente arredondadas (border-radius de 4px a 6px)
+- **Sombras**: Evitar sombras projetadas. A profundidade é indicada pelo contraste de cor e, no caso do nó selecionado, pelo brilho exterior
+
+## 3.0 Componentes da Interface
+
+### 3.1 Tela Principal (Canvas)
+
+A tela principal é o espaço de trabalho infinito onde os fluxos são construídos.
+
+**Estado Vazio**: Ao iniciar, a tela está vazia, exceto por uma mensagem de ajuda centralizada.
+
+**Referência Visual**: `images/initial_state.png`
+
+```
+Start mapping your flow
 
 Press Tab to create your first node
 Press? for all shortcuts
-Barra Superior: Uma barra superior mínima exibe o "breadcrumb" de navegação no canto esquerdo e uma dica de ajuda no canto direito.Referência Visual: images/main_view_empty.pngBreadcrumb: Exibe o caminho hierárquico. Ex: Main Flow ou Main Flow > CIG.Dica de Ajuda: Texto estático: Press? for shortcuts.3.2 Nós (Nodes)Os nós são os blocos de construção fundamentais do diagrama.Aparência: Retângulos com fundo #3a3a3a e texto #cccccc. O texto dentro do nó é sempre centralizado horizontal e verticalmente.Estados:Padrão: Estado normal, não selecionado.Selecionado: Um brilho exterior na cor de destaque (#00aaff) é aplicado ao nó. O texto e o fundo permanecem os mesmos.Referência Visual: images/active_flow.png (ver nó "Ariba").Edição: Ao criar um novo nó ou editar um existente, um cursor de texto pisca dentro dele.Com Sub-fluxo: Um ícone discreto (ex: um pequeno ícone de "camadas" ou "seta para baixo") deve aparecer num dos cantos do nó para indicar que ele contém um sub-fluxo navegável.3.3 Conectores (Connectors)Aparência: Linhas retas na cor #5f9ea0 com uma ponta de seta sólida no final, indicando a direção do fluxo.Comportamento: A aplicação deve rotear automaticamente os conectores para evitar colisões e manter o layout limpo. As conexões partem do ponto médio das bordas dos nós.3.4 Sobreposição de Ajuda (Help Overlay)Ativação: Exibida ao pressionar a tecla ?.Aparência: Um painel semi-transparente, de cor escura, que aparece no canto inferior direito da tela, sobrepondo-se ao canvas.Conteúdo: Lista os atalhos de teclado essenciais.Referência Visual: images/help_overlay_active.png e images/shortcuts_panel.pngLayout do Conteúdo:FlowDeconstruct Shortcuts
+```
+
+**Barra Superior**: Uma barra superior mínima exibe o "breadcrumb" de navegação no canto esquerdo e uma dica de ajuda no canto direito.
+
+**Referência Visual**: `images/main_view_empty.png`
+
+- **Breadcrumb**: Exibe o caminho hierárquico. Ex: Main Flow ou Main Flow > CIG
+- **Dica de Ajuda**: Texto estático: Press? for shortcuts
+
+### 3.2 Nós (Nodes)
+
+Os nós são os blocos de construção fundamentais do diagrama.
+
+**Aparência**: Retângulos com fundo `#3a3a3a` e texto `#cccccc`. O texto dentro do nó é sempre centralizado horizontal e verticalmente.
+
+**Estados**:
+- **Padrão**: Estado normal, não selecionado
+- **Selecionado**: Um brilho exterior na cor de destaque (`#00aaff`) é aplicado ao nó. O texto e o fundo permanecem os mesmos
+- **Edição**: Ao criar um novo nó ou editar um existente, um cursor de texto pisca dentro dele
+- **Com Sub-fluxo**: Um ícone discreto (ex: um pequeno ícone de "camadas" ou "seta para baixo") deve aparecer num dos cantos do nó para indicar que ele contém um sub-fluxo navegável
+
+**Referência Visual**: `images/active_flow.png` (ver nó "Ariba")
+
+### 3.3 Conectores (Connectors)
+
+**Aparência**: Linhas retas na cor `#5f9ea0` com uma ponta de seta sólida no final, indicando a direção do fluxo.
+
+**Comportamento**: A aplicação deve rotear automaticamente os conectores para evitar colisões e manter o layout limpo. As conexões partem do ponto médio das bordas dos nós.
+
+### 3.4 Sobreposição de Ajuda (Help Overlay)
+
+**Ativação**: Exibida ao pressionar a tecla `?`.
+
+**Aparência**: Um painel semi-transparente, de cor escura, que aparece no canto inferior direito da tela, sobrepondo-se ao canvas.
+
+**Conteúdo**: Lista os atalhos de teclado essenciais.
+
+**Referência Visual**: `images/help_overlay_active.png` e `images/shortcuts_panel.png`
+
+**Layout do Conteúdo**:
+
+```
+FlowDeconstruct Shortcuts
 
 Tab        - Create connected node
+Enter      - Edit selected node
+Type text  - Auto-edit selected node
 Ctrl+Enter - Drill down to subflow
 Ctrl+N     - Add note to selected node
 Ctrl+E     - Export flow
 Arrow Keys - Navigate nodes
 Esc        - Go back / Cancel
-?          - Show this help```4.0 Fluxos de Interação e Telas4.1 Início e Criação do Primeiro NóO utilizador abre a aplicação. A tela images/main_view_empty.png é exibida.O utilizador pressiona Tab.A mensagem de ajuda central desaparece. Um único nó aparece no centro da tela em modo de edição, com um cursor a piscar.O utilizador digita o nome do nó (ex: "ECC") e pressiona Enter. O nó sai do modo de edição e fica no estado padrão.4.2 Construção do FluxoCom um nó selecionado (ex: "ECC"), o utilizador pressiona Tab.Um novo nó ("Nó 2") aparece à direita do nó selecionado, já conectado por uma seta que vai do "Nó 1" para o "Nó 2".O "Nó 2" está imediatamente em modo de edição. O utilizador digita o nome (ex: "CIG") e pressiona Enter.O resultado é um fluxo como [ECC] -> [CIG]. O nó "CIG" fica selecionado.Referência Visual: images/active_flow.png ilustra o resultado final de várias dessas operações.4.3 Navegação e Aprofundamento (Drill-Down)O utilizador navega para o nó "CIG" usando as Teclas de Seta. O nó "CIG" exibe o brilho de seleção.O utilizador pressiona Ctrl+Enter.Ocorre uma transição suave: a tela atual (Main Flow) afasta-se com zoom ou desliza para fora, e uma nova tela de canvas vazia aparece.O breadcrumb no canto superior esquerdo é atualizado para Main Flow > CIG.O utilizador pode agora mapear o sub-fluxo dentro do CIG.Para retornar, o utilizador pressiona Esc. A tela do sub-fluxo transita para fora, e a tela do Main Flow retorna ao seu estado anterior, com o nó "CIG" ainda selecionado.4.4 Exibindo AjudaA qualquer momento, o utilizador pressiona ?.A sobreposição de ajuda (images/shortcuts_panel.png) aparece no canto inferior direito.O utilizador pressiona Esc ou ? novamente para fechar a sobreposição.5.0 Modelo de Interação (Atalhos Obrigatórios)A funcionalidade principal deve ser mapeada para estes atalhos, sem exceção.Tecla(s)AçãoTabCom a tela vazia, cria o primeiro nó. Com um nó selecionado, cria um novo nó conectado.EnterConfirma a edição de texto num nó.Teclas de SetaNavega a seleção entre os nós existentes.Ctrl+EnterNavega para o sub-fluxo de um nó selecionado.Ctrl+NEntra no modo de edição de notas para o nó selecionado.Ctrl+EAbre o diálogo de exportação (PDF/Markdown).EscRetorna do sub-fluxo para o fluxo pai. Fecha a sobreposição de ajuda ou cancela a ação atual.?Mostra/esconde a sobreposição de ajuda.6.0 Ativos Visuais de ReferênciaOs seguintes ficheiros de imagem, localizados na pasta /images/ do projeto, servem como referência canónica para a implementação da UI.images/initial_state.png: Mostra a mensagem de boas-vindas centralizada.images/main_view_empty.png: Mostra a janela completa da aplicação no estado inicial.images/help_overlay_active.png: Mostra a janela completa com a sobreposição de ajuda ativa.images/active_flow.png: Mostra um fluxo de exemplo com três nós, com o último nó no estado selecionado.images/shortcuts_panel.png: Mostra um close-up do painel de atalhos.
+?          - Show this help
+```
+
+## 4.0 Fluxos de Interação e Telas
+
+### 4.1 Início e Criação do Primeiro Nó
+
+1. O utilizador abre a aplicação. A tela `images/main_view_empty.png` é exibida
+2. O utilizador pressiona Tab
+3. A mensagem de ajuda central desaparece. Um único nó aparece no centro da tela em modo de edição, com um cursor a piscar
+4. O utilizador digita o nome do nó (ex: "ECC") e pressiona Enter. O nó sai do modo de edição e fica no estado padrão
+
+### 4.2 Construção do Fluxo
+
+1. Com um nó selecionado (ex: "ECC"), o utilizador pressiona Tab
+2. Um novo nó ("Nó 2") aparece à direita do nó selecionado, já conectado por uma seta que vai do "Nó 1" para o "Nó 2"
+3. O "Nó 2" está imediatamente em modo de edição. O utilizador digita o nome (ex: "CIG") e pressiona Enter
+4. O resultado é um fluxo como [ECC] -> [CIG]. O nó "CIG" fica selecionado
+
+**Referência Visual**: `images/active_flow.png` ilustra o resultado final de várias dessas operações.
+
+### 4.3 Navegação e Aprofundamento (Drill-Down)
+
+1. O utilizador navega para o nó "CIG" usando as Teclas de Seta. O nó "CIG" exibe o brilho de seleção
+2. O utilizador pressiona Ctrl+Enter
+3. Ocorre uma transição suave: a tela atual (Main Flow) afasta-se com zoom ou desliza para fora, e uma nova tela de canvas vazia aparece
+4. O breadcrumb no canto superior esquerdo é atualizado para Main Flow > CIG
+5. O utilizador pode agora mapear o sub-fluxo dentro do CIG
+6. Para retornar, o utilizador pressiona Esc. A tela do sub-fluxo transita para fora, e a tela do Main Flow retorna ao seu estado anterior, com o nó "CIG" ainda selecionado
+
+### 4.4 Exibindo Ajuda
+
+1. A qualquer momento, o utilizador pressiona `?`
+2. A sobreposição de ajuda (`images/shortcuts_panel.png`) aparece no canto inferior direito
+3. O utilizador pressiona Esc ou `?` novamente para fechar a sobreposição
+
+## 5.0 Modelo de Interação (Atalhos Obrigatórios)
+
+A funcionalidade principal deve ser mapeada para estes atalhos, sem exceção:
+
+| Tecla(s) | Ação |
+|----------|------|
+| `Tab` | Com a tela vazia, cria o primeiro nó. Com um nó selecionado, cria um novo nó conectado |
+| `Enter` | Inicia a edição do nó selecionado. Confirma a edição de texto quando em modo de edição |
+| `Digitar Texto` | Com um nó selecionado, digitar texto automaticamente inicia a edição e substitui o conteúdo anterior |
+| `Teclas de Seta` | Navega a seleção entre os nós existentes |
+| `Ctrl+Enter` | Navega para o sub-fluxo de um nó selecionado |
+| `Ctrl+N` | Entra no modo de edição de notas para o nó selecionado |
+| `Ctrl+E` | Abre o diálogo de exportação (PDF/Markdown) |
+| `Esc` | Retorna do sub-fluxo para o fluxo pai. Fecha a sobreposição de ajuda ou cancela a ação atual |
+| `?` | Mostra/esconde a sobreposição de ajuda |
+
+## 6.0 Ativos Visuais de Referência
+
+Os seguintes ficheiros de imagem, localizados na pasta `/images/` do projeto, servem como referência canónica para a implementação da UI:
+
+- `images/initial_state.png`: Mostra a mensagem de boas-vindas centralizada
+- `images/main_view_empty.png`: Mostra a janela completa da aplicação no estado inicial
+- `images/help_overlay_active.png`: Mostra a janela completa com a sobreposição de ajuda ativa
+- `images/active_flow.png`: Mostra um fluxo de exemplo com três nós, com o último nó no estado selecionado
+- `images/shortcuts_panel.png`: Mostra um close-up do painel de atalhos
+
+## 7.0 Changelog - Atualizações Recentes
+
+### v1.0.1 - Melhorias na Edição de Nós
+- **Enter**: Agora inicia edição do nó selecionado ao invés de criar novo nó
+- **Digite Texto**: Edição automática quando texto é digitado com nó selecionado
+- **Edição Limpa**: Campo de texto limpo ao iniciar edição (substitui texto anterior)
+
+### v1.0.0 - Release Inicial
+- Implementação completa da especificação de design
+- Tema escuro obrigatório
+- Atalhos de teclado funcionais
+- Sistema de navegação hierárquica

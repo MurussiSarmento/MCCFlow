@@ -270,7 +270,8 @@ public class FlowCanvas extends JPanel implements MouseListener, MouseMotionList
         
         String text = node == editingNode ? editingText : node.getText();
         if (text == null || text.isEmpty()) {
-            text = "New Node";
+            // Only show "New Node" placeholder when not editing
+            text = node == editingNode ? "" : "New Node";
         }
         
         // Center text in node
@@ -365,6 +366,22 @@ public class FlowCanvas extends JPanel implements MouseListener, MouseMotionList
         }
     }
     
+    public void startEditingSelectedNode() {
+        if (flowDiagram == null) {
+            System.out.println("FlowCanvas.startEditingSelectedNode: No flow diagram");
+            return;
+        }
+        
+        FlowNode selectedNode = flowDiagram.getSelectedNode();
+        if (selectedNode == null) {
+            System.out.println("FlowCanvas.startEditingSelectedNode: No selected node");
+            return;
+        }
+        
+        System.out.println("FlowCanvas.startEditingSelectedNode: Starting to edit " + selectedNode.getText());
+        startEditingNode(selectedNode);
+    }
+    
     private FlowNode findNextNode(FlowNode current, int direction) {
         if (flowDiagram == null) return null;
         
@@ -414,7 +431,8 @@ public class FlowCanvas extends JPanel implements MouseListener, MouseMotionList
     
     private void startEditingNode(FlowNode node) {
         editingNode = node;
-        editingText = node.getText() != null ? node.getText() : "";
+        // Start with empty text to allow user to type new text from scratch
+        editingText = "";
         
         // Add key listener for text editing
         requestFocusInWindow();
@@ -422,7 +440,12 @@ public class FlowCanvas extends JPanel implements MouseListener, MouseMotionList
     
     private void finishEditingNode() {
         if (editingNode != null) {
-            editingNode.setText(editingText);
+            // If user leaves text empty, set it to empty string (not "New Node")
+            if (editingText.trim().isEmpty()) {
+                editingNode.setText("");
+            } else {
+                editingNode.setText(editingText);
+            }
             editingNode = null;
             editingText = "";
             repaint();
@@ -542,7 +565,7 @@ public class FlowCanvas extends JPanel implements MouseListener, MouseMotionList
     
     public void handleEscapeKey() {
         if (editingNode != null) {
-            // Cancel editing
+            // Cancel editing - node text remains unchanged
             editingNode = null;
             editingText = "";
             repaint();

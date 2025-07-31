@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mvn:*)",
+      "Bash(java:*)",
+      "Bash(del prompt.md)",
+      "Bash(rm:*)"
+    ],
+    "deny": []
+  }
+}
