@@ -296,8 +296,12 @@ public class MainWindow extends JFrame implements KeyListener {
                     // Don't consume the event - let it propagate for keyTyped processing
                     return false;
                 } else if (e.getID() == KeyEvent.KEY_TYPED) {
-                    keyTyped(e);
-                    return true;
+                    if (canvas.isEditingNode()) {
+                        return false; // Let it propagate to canvas during editing
+                    } else {
+                        keyTyped(e);
+                        return true;
+                    }
                 }
             }
             return false;
@@ -362,24 +366,20 @@ public class MainWindow extends JFrame implements KeyListener {
             case KeyEvent.VK_N:
                 if (ctrl) {
                     addNoteToSelectedNode();
-                } else {
-                    createNode();
                 }
                 break;
                 
             case KeyEvent.VK_E:
                 if (ctrl) {
                     exportFlow();
-                } else if (currentFlow != null && currentFlow.getSelectedNode() != null) {
-                    currentFlow.getSelectedNode().setEditing(true);
-                    canvas.repaint();
+                } else if (currentFlow != null && currentFlow.getSelectedNode() != null && !canvas.isEditingNode()) {
+                    canvas.startEditingSelectedNode();
                 }
                 break;
                 
             case KeyEvent.VK_ESCAPE:
-                if (currentFlow != null && currentFlow.getSelectedNode() != null && currentFlow.getSelectedNode().isEditing()) {
-                    currentFlow.getSelectedNode().setEditing(false);
-                    canvas.repaint();
+                if (canvas.isEditingNode()) {
+                    canvas.handleEscapeKey();
                 } else {
                     handleEscape();
                 }
@@ -543,9 +543,6 @@ public class MainWindow extends JFrame implements KeyListener {
                 if (ctrl) {
                     System.out.println("MainWindow.keyPressed: Ctrl+N - adding note");
                     addNoteToSelectedNode();
-                } else {
-                    System.out.println("MainWindow.keyPressed: N - creating node");
-                    createNode();
                 }
                 break;
                 
@@ -560,14 +557,7 @@ public class MainWindow extends JFrame implements KeyListener {
                 }
                 break;
                 
-            case KeyEvent.VK_BACK_SPACE:
-                System.out.println("MainWindow.keyPressed: BACKSPACE key detected");
-                // Check if a node is currently being edited
-                if (canvas != null && canvas.isEditingNode()) {
-                    System.out.println("MainWindow.keyPressed: Node is being edited, letting canvas handle Backspace");
-                    canvas.handleKeyTyped('\b');
-                }
-                break;
+            // Removed manual backspace handling to allow natural propagation
                 
             case KeyEvent.VK_ESCAPE:
                 System.out.println("MainWindow.keyPressed: ESCAPE key detected");
