@@ -2,6 +2,25 @@
 
 Todas as mudanças importantes do projeto serão documentadas neste arquivo.
 
+## [v1.0.2] - 2025-08-01
+
+### 🐛 Correções Críticas
+- **Nome dos Nós**: Resolvido problema onde nomes de nós não eram persistidos corretamente
+- **Edição de Texto**: Corrigida duplicação de caracteres durante edição de nós 
+- **Foco de Teclado**: Melhorada captura de eventos de teclado no canvas
+- **Persistência**: Corrigidos problemas de salvamento automático de projetos
+
+### 🔧 Melhorias Técnicas
+- Refatoração do sistema de edição de texto em `FlowCanvas.java:startEditingNode()`
+- Melhorias no gerenciamento de foco entre MainWindow e FlowCanvas
+- Correção da lógica de `finishEditingNode()` para preservar texto vazio
+- Aprimoramentos no sistema de logging para debugging
+
+### 📚 Documentação
+- Atualizada estrutura de arquivos no README.md
+- Adicionadas novas instruções de troubleshooting
+- Documentação sincronizada com alterações recentes no código
+
 ## [v1.0.1] - 2025-07-31
 
 ### ✨ Melhorias na Edição de Nós

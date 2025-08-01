@@ -307,7 +307,6 @@ public class FlowCanvas extends JPanel implements MouseListener, MouseMotionList
         System.out.println("Creating new node in diagram: " + flowDiagram.getName());
         
         FlowNode newNode = new FlowNode();
-        newNode.setText("New Node");
         
         // Position new node
         FlowNode selectedNode = flowDiagram.getSelectedNode();

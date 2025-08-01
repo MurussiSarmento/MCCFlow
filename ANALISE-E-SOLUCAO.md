@@ -54,6 +54,9 @@ O usuário relatou que a aplicação não estava funcionando como um JAR execut�
 3. **Hotkey Global**: Ctrl+Shift+F funcional
 4. **Interface**: Carrega corretamente
 5. **Dependências**: Todas incluídas no JAR
+6. **Persistência de Nomes**: Nomes de nós agora salvam corretamente (v1.0.2)
+7. **Edição de Texto**: Duplicação de caracteres corrigida (v1.0.2)
+8. **Foco de Teclado**: Sistema de eventos aprimorado (v1.0.2)
 
 ### ✅ Funcionalidades Verificadas
 - Aplicação inicia minimizada na bandeja
@@ -62,6 +65,9 @@ O usuário relatou que a aplicação não estava funcionando como um JAR execut�
 - Hotkey global Ctrl+Shift+F
 - Interface principal acessível
 - Logs mostram inicialização correta
+- Edição de nós funciona sem duplicação de texto
+- Nomes de nós são persistidos entre sessões
+- Sistema de foco de teclado estável
 
 ## Como Usar
 
@@ -106,5 +112,8 @@ O problema foi completamente resolvido. A aplicação FlowDeconstruct agora:
 - ✅ Suporta hotkeys globais
 - ✅ Possui interface funcional
 - ✅ Inclui todas as dependências necessárias
+- ✅ Edição de texto estável sem duplicação (v1.0.2)
+- ✅ Persistência confiável de nomes de nós (v1.0.2)
+- ✅ Sistema de foco de teclado robusto (v1.0.2)
 
-A aplicação está pronta para uso em produção e pode ser distribuída como um único arquivo JAR.
+A aplicação está pronta para uso em produção e pode ser distribuída como um único arquivo JAR. Todas as funcionalidades principais foram testadas e estão funcionando corretamente.

@@ -25,6 +25,14 @@
 - [x] Verificação da interface principal
 - [x] Confirmação dos logs de inicialização
 
+### 4. ✅ Correções de Bugs Críticos (v1.0.2)
+- [x] Correção de persistência de nomes de nós
+- [x] Resolução de duplicação de texto durante edição
+- [x] Melhorias no foco de teclado
+- [x] Estabilização do sistema de salvamento automático
+- [x] Correções no FlowCanvas.java para edição de texto
+- [x] Melhorias no gerenciamento de eventos de teclado
+
 ## 🔄 EM ANDAMENTO - Melhorias Opcionais
 
 ### 4. 📋 Documentação e Usabilidade
@@ -112,13 +120,15 @@
 ## 📝 NOTAS IMPORTANTES
 
 - **Problema Principal**: ✅ RESOLVIDO - Aplicação agora funciona como JAR na bandeja
+- **Bugs Críticos**: ✅ RESOLVIDOS - Persistência de nomes e edição de texto corrigidos
 - **Execução**: Use `FlowDeconstruct.bat` para execução simples
 - **Build**: Use `build-jar.ps1` para recompilar quando necessário
-- **Hotkey**: Ctrl+Shift+F para mostrar/ocultar interface
+- **Hotkey**: Ctrl+Shift+F para mostrar/ocultar interface  
 - **Localização**: JAR executável em `target/FlowDeconstruct.jar`
+- **Versão Atual**: v1.0.2 com correções de estabilidade
 
 ## 🔄 ATUALIZAÇÕES
 
-**Data**: $(Get-Date -Format 'dd/MM/yyyy HH:mm')
-**Status**: Problema principal resolvido com sucesso
-**Próximo Marco**: Melhorias opcionais conforme necessidade do usuário
+**Data**: 01/08/2025 
+**Status**: Todos os problemas críticos resolvidos, aplicação estável
+**Próximo Marco**: Melhorias opcionais e novas funcionalidades conforme necessidade do usuário

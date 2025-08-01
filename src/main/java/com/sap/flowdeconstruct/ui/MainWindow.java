@@ -557,6 +557,14 @@ public class MainWindow extends JFrame implements KeyListener {
                 }
                 break;
                 
+            case KeyEvent.VK_DELETE:
+                System.out.println("MainWindow.keyPressed: DELETE key detected");
+                if (!canvas.isEditingNode() && currentFlow != null && currentFlow.getSelectedNode() != null) {
+                    System.out.println("MainWindow.keyPressed: Deleting selected node");
+                    currentFlow.removeNode(currentFlow.getSelectedNode());
+                }
+                break;
+                
             // Removed manual backspace handling to allow natural propagation
                 
             case KeyEvent.VK_ESCAPE:

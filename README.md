@@ -333,11 +333,20 @@ A: Run `.\build-jar.ps1` to compile and create the JAR file.
 - ✅ Build automation scripts
 - ✅ SAP JVM 8 integration
 - ✅ Node editing improvements (Enter to edit, auto-edit on type)
+- ✅ Text persistence fixes (names are now saved correctly)
+- ✅ Keyboard focus improvements
+- ✅ Editing system stability enhancements
 
 ### 🔄 In Progress
 - 🔄 Enhanced documentation
 - 🔄 Performance optimizations
 - 🔄 UI refinements
+
+### 🐛 Recent Bug Fixes (v1.0.2)
+- Fixed node name persistence issues
+- Resolved text duplication during editing
+- Improved keyboard event handling
+- Enhanced project save/load stability
 
 ### 🎯 Future Enhancements
 - 🔄 Windows installer (.msi)
@@ -370,5 +379,5 @@ Special recognition to the design philosophy of speed-first tools that inspired 
 
 ---
 
-**FlowDeconstruct v1.0.0** - Built for the SAP Mission Critical Center  
+**FlowDeconstruct v1.0.2** - Built for the SAP Mission Critical Center  
 *"Analysis at the speed of thought"*
