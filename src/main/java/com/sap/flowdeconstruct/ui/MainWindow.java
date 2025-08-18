@@ -36,6 +36,7 @@ public class MainWindow extends JFrame implements KeyListener {
     // Navigation state
     private Stack<FlowDiagram> navigationStack;
     private FlowDiagram currentFlow;
+    private boolean moveMode = false;
     
     public MainWindow(ProjectManager projectManager) {
         this.projectManager = projectManager;
@@ -577,24 +578,47 @@ public class MainWindow extends JFrame implements KeyListener {
                 }
                 break;
                 
+            case KeyEvent.VK_M:
+                if (ctrl) {
+                    moveMode = !moveMode;
+                    System.out.println("Move mode " + (moveMode ? "enabled" : "disabled"));
+                }
+                break;
+            
             case KeyEvent.VK_UP:
                 System.out.println("MainWindow.keyPressed: UP key detected");
-                navigateNodes(keyCode);
+                if (moveMode && e.isShiftDown() && currentFlow != null && currentFlow.getSelectedNode() != null && !canvas.isEditingNode()) {
+                    moveSelectedNode(0, -10);
+                } else {
+                    navigateNodes(keyCode);
+                }
                 break;
-                
+            
             case KeyEvent.VK_DOWN:
                 System.out.println("MainWindow.keyPressed: DOWN key detected");
-                navigateNodes(keyCode);
+                if (moveMode && e.isShiftDown() && currentFlow != null && currentFlow.getSelectedNode() != null && !canvas.isEditingNode()) {
+                    moveSelectedNode(0, 10);
+                } else {
+                    navigateNodes(keyCode);
+                }
                 break;
-                
+            
             case KeyEvent.VK_LEFT:
                 System.out.println("MainWindow.keyPressed: LEFT key detected");
-                navigateNodes(keyCode);
+                if (moveMode && e.isShiftDown() && currentFlow != null && currentFlow.getSelectedNode() != null && !canvas.isEditingNode()) {
+                    moveSelectedNode(-10, 0);
+                } else {
+                    navigateNodes(keyCode);
+                }
                 break;
-                
+            
             case KeyEvent.VK_RIGHT:
                 System.out.println("MainWindow.keyPressed: RIGHT key detected");
-                navigateNodes(keyCode);
+                if (moveMode && e.isShiftDown() && currentFlow != null && currentFlow.getSelectedNode() != null && !canvas.isEditingNode()) {
+                    moveSelectedNode(10, 0);
+                } else {
+                    navigateNodes(keyCode);
+                }
                 break;
                 
             case KeyEvent.VK_SLASH:
@@ -728,6 +752,16 @@ public class MainWindow extends JFrame implements KeyListener {
     private void navigateNodes(int direction) {
         if (canvas != null) {
             canvas.navigateNodes(direction);
+        }
+    }
+    
+    private void moveSelectedNode(int dx, int dy) {
+        FlowNode node = currentFlow.getSelectedNode();
+        int newX = (int)node.getX() + dx;
+        int newY = (int)node.getY() + dy;
+        if (!canvas.wouldOverlap(node, newX, newY)) {
+            node.setPosition(newX, newY);
+            canvas.repaint();
         }
     }
     

@@ -42,6 +42,7 @@ public class FlowCanvas extends JPanel implements MouseListener, MouseMotionList
     private double zoomLevel = 1.0;
     private Point lastMousePos;
     private boolean dragging = false;
+    private FlowNode draggingNode = null;
     
     public FlowCanvas() {
         setBackground(BACKGROUND_COLOR);
@@ -490,15 +491,76 @@ public class FlowCanvas extends JPanel implements MouseListener, MouseMotionList
         requestFocusInWindow();
     }
     
+    // In mousePressed
     @Override
     public void mousePressed(MouseEvent e) {
         lastMousePos = e.getPoint();
+        Point2D.Double worldPos = screenToWorld(e.getPoint());
+        FlowNode clickedNode = findNodeAt(worldPos);
+        if (clickedNode != null && clickedNode.isSelected()) {
+            draggingNode = clickedNode;
+        } else {
+            draggingNode = null;
+        }
         requestFocusInWindow();
     }
     
+    // In mouseDragged
+    @Override
+    public void mouseDragged(MouseEvent e) {
+        if (lastMousePos == null) return;
+        
+        if (draggingNode != null) {
+            // Calculate movement delta in screen coordinates
+            int screenDx = e.getX() - lastMousePos.x;
+            int screenDy = e.getY() - lastMousePos.y;
+            
+            // Convert to world coordinates (accounting for zoom)
+            int worldDx = (int)(screenDx / zoomLevel);
+            int worldDy = (int)(screenDy / zoomLevel);
+            
+            // Apply movement to the node
+            int newX = (int)draggingNode.getX() + worldDx;
+            int newY = (int)draggingNode.getY() + worldDy;
+            
+            // Apply canvas bounds
+            newX = Math.max(10, Math.min(newX, 2000 - 150));
+            newY = Math.max(10, Math.min(newY, 1500 - 80));
+            
+            if (!wouldOverlap(draggingNode, newX, newY)) {
+                draggingNode.setPosition(newX, newY);
+                repaint();
+            }
+        } else {
+            // Pan the view
+            int dx = e.getX() - lastMousePos.x;
+            int dy = e.getY() - lastMousePos.y;
+            viewOffset.x += dx;
+            viewOffset.y += dy;
+            repaint();
+        }
+        
+        lastMousePos = e.getPoint();
+        dragging = true;
+    }
+    
+    // In mouseReleased
     @Override
     public void mouseReleased(MouseEvent e) {
         dragging = false;
+        draggingNode = null;
+    }
+    
+    // New method
+    public boolean wouldOverlap(FlowNode movingNode, int newX, int newY) {
+        for (FlowNode node : flowDiagram.getNodes()) {
+            if (node == movingNode) continue;
+            int minDistance = 10; // Minimum distance between nodes
+            boolean overlapX = Math.abs(newX - node.getX()) < NODE_WIDTH + minDistance;
+            boolean overlapY = Math.abs(newY - node.getY()) < NODE_HEIGHT + minDistance;
+            if (overlapX && overlapY) return true;
+        }
+        return false;
     }
     
     @Override
@@ -509,22 +571,6 @@ public class FlowCanvas extends JPanel implements MouseListener, MouseMotionList
     @Override
     public void mouseExited(MouseEvent e) {
         // Not used
-    }
-    
-    @Override
-    public void mouseDragged(MouseEvent e) {
-        if (lastMousePos != null) {
-            int dx = e.getX() - lastMousePos.x;
-            int dy = e.getY() - lastMousePos.y;
-            
-            // Pan the view
-            viewOffset.x += dx;
-            viewOffset.y += dy;
-            
-            lastMousePos = e.getPoint();
-            dragging = true;
-            repaint();
-        }
     }
     
     @Override
