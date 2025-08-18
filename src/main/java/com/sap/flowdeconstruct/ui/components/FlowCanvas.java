@@ -15,7 +15,7 @@ import java.util.List;
  * Canvas component for rendering and interacting with flow diagrams
  * Implements the visual design specified in design.md
  */
-public class FlowCanvas extends JPanel implements MouseListener, MouseMotionListener, KeyListener {
+public class FlowCanvas extends JPanel implements MouseListener, MouseMotionListener, KeyListener, FocusListener {
     
     // Design constants from design.md
     private static final Color BACKGROUND_COLOR = new Color(0x2d, 0x2d, 0x2d);
@@ -51,6 +51,7 @@ public class FlowCanvas extends JPanel implements MouseListener, MouseMotionList
         addMouseListener(this);
         addMouseMotionListener(this);
         addKeyListener(this);
+        addFocusListener(this);
         
         // Enable focus for keyboard events
         setFocusable(true);
@@ -298,6 +299,12 @@ public class FlowCanvas extends JPanel implements MouseListener, MouseMotionList
     
     // Public methods for interaction
     public void createNode() {
+        // Save current editing before creating new node
+        if (editingNode != null) {
+            System.out.println("FlowCanvas.createNode: Auto-saving current edit before creating new node");
+            finishEditingNode();
+        }
+        
         System.out.println("createNode() called");
         
         if (flowDiagram == null) {
@@ -340,6 +347,12 @@ public class FlowCanvas extends JPanel implements MouseListener, MouseMotionList
     }
     
     public void navigateNodes(int direction) {
+        // Save current editing before navigating
+        if (editingNode != null) {
+            System.out.println("FlowCanvas.navigateNodes: Auto-saving current edit before navigation");
+            finishEditingNode();
+        }
+        
         if (flowDiagram == null || flowDiagram.getNodes().isEmpty()) {
             System.out.println("FlowCanvas.navigateNodes: No flow or empty nodes");
             return;
@@ -447,7 +460,7 @@ public class FlowCanvas extends JPanel implements MouseListener, MouseMotionList
         requestFocusInWindow();
     }
     
-    private void finishEditingNode() {
+    public void finishEditingNode() {
         if (editingNode != null) {
             System.out.println("FlowCanvas.finishEditingNode: Finishing edit for node with text: '" + editingText + "'");
             // If user leaves text empty, set it to empty string (not "New Node")
@@ -474,6 +487,12 @@ public class FlowCanvas extends JPanel implements MouseListener, MouseMotionList
         
         // Find clicked node
         FlowNode clickedNode = findNodeAt(worldPos);
+        
+        // Auto-save if clicking on different node or empty space during editing
+        if (editingNode != null && clickedNode != editingNode) {
+            System.out.println("FlowCanvas.mouseClicked: Auto-saving current edit due to click elsewhere");
+            finishEditingNode();
+        }
         
         if (clickedNode != null) {
             flowDiagram.selectNode(clickedNode);
@@ -664,5 +683,21 @@ public class FlowCanvas extends JPanel implements MouseListener, MouseMotionList
     @Override
     public void keyReleased(KeyEvent e) {
         // Not used
+    }
+    
+    // FocusListener implementation
+    @Override
+    public void focusGained(FocusEvent e) {
+        // Not used - no special action needed when gaining focus
+        System.out.println("FlowCanvas.focusGained: Canvas gained focus");
+    }
+    
+    @Override
+    public void focusLost(FocusEvent e) {
+        // Auto-save when losing focus during editing
+        if (editingNode != null) {
+            System.out.println("FlowCanvas.focusLost: Auto-saving current edit due to focus loss");
+            finishEditingNode();
+        }
     }
 }

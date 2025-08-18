@@ -101,6 +101,12 @@ public class MainWindow extends JFrame implements KeyListener {
         canvas.setBackground(BACKGROUND_COLOR);
         System.out.println("MainWindow: Canvas created");
         
+        // Set current flow on canvas if it exists
+        if (currentFlow != null) {
+            System.out.println("MainWindow: Setting existing currentFlow on newly created canvas");
+            canvas.setFlowDiagram(currentFlow);
+        }
+        
         JScrollPane scrollPane = new JScrollPane(canvas);
         scrollPane.setBackground(BACKGROUND_COLOR);
         scrollPane.getViewport().setBackground(BACKGROUND_COLOR);
@@ -441,10 +447,17 @@ public class MainWindow extends JFrame implements KeyListener {
     
     private void setCurrentFlow(FlowDiagram flow) {
         System.out.println("Setting current flow: " + (flow != null ? flow.getName() : "null"));
+        
+        // Auto-save any current editing before changing flow (only if canvas exists)
+        if (canvas != null && canvas.isEditingNode()) {
+            System.out.println("Auto-saving current edit before changing flow");
+            canvas.finishEditingNode();
+        }
+        
         this.currentFlow = flow;
         
         if (canvas == null) {
-            System.out.println("ERROR: canvas is null");
+            System.out.println("Canvas not yet initialized, flow will be set when canvas is ready");
         } else {
             System.out.println("Setting flow diagram on canvas");
             canvas.setFlowDiagram(flow);
@@ -452,7 +465,7 @@ public class MainWindow extends JFrame implements KeyListener {
         
         updateBreadcrumb();
         
-        // Request focus to ensure key events are received
+        // Request focus to ensure key events are received (only if canvas exists)
         SwingUtilities.invokeLater(() -> {
             if (canvas != null) {
                 System.out.println("Requesting focus for canvas");
@@ -700,6 +713,11 @@ public class MainWindow extends JFrame implements KeyListener {
     }
     
     private void drillDownToSubflow() {
+        // Auto-save any current editing before drilling down
+        if (canvas != null && canvas.isEditingNode()) {
+            canvas.finishEditingNode();
+        }
+        
         FlowNode selectedNode = currentFlow.getSelectedNode();
         if (selectedNode != null) {
             if (!selectedNode.hasSubFlow()) {
@@ -713,6 +731,11 @@ public class MainWindow extends JFrame implements KeyListener {
     }
     
     private void addNoteToSelectedNode() {
+        // Auto-save any current editing before opening note dialog
+        if (canvas != null && canvas.isEditingNode()) {
+            canvas.finishEditingNode();
+        }
+        
         FlowNode selectedNode = currentFlow.getSelectedNode();
         if (selectedNode != null) {
             NoteDialog dialog = new NoteDialog(this, selectedNode.getNotes());
@@ -726,6 +749,11 @@ public class MainWindow extends JFrame implements KeyListener {
     }
     
     private void exportFlow() {
+        // Auto-save any current editing before opening export dialog
+        if (canvas != null && canvas.isEditingNode()) {
+            canvas.finishEditingNode();
+        }
+        
         ExportDialog dialog = new ExportDialog(this);
         dialog.setVisible(true);
         
@@ -743,6 +771,11 @@ public class MainWindow extends JFrame implements KeyListener {
         if (helpVisible) {
             hideHelpOverlay();
         } else if (!navigationStack.isEmpty()) {
+            // Auto-save any current editing before going back
+            if (canvas != null && canvas.isEditingNode()) {
+                canvas.finishEditingNode();
+            }
+            
             // Go back to parent flow
             FlowDiagram parentFlow = navigationStack.pop();
             setCurrentFlow(parentFlow);
