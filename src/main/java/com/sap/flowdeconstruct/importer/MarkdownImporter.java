@@ -25,11 +25,11 @@ public class MarkdownImporter {
         List<String> lines = getAllLines(document);
         boolean inConnectionsSection = false;
         FlowNode currentNode = null;
-    
+
         for (String line : lines) {
             String trimmed = line.trim();
             if (trimmed.isEmpty()) continue;
-    
+
             if (trimmed.startsWith("# ")) {
                 currentFlow.setName(trimmed.substring(2).trim());
                 inConnectionsSection = false;
@@ -50,11 +50,16 @@ public class MarkdownImporter {
                             currentNode = flowNode;
                         }
                     }
-                } else if (trimmed.startsWith("*Notes:") && currentNode != null) {
-                    // Parse note line: "*Notes: some note text*"
-                    String noteText = trimmed.substring(7).trim(); // Remove "*Notes:"
-                    if (noteText.endsWith("*")) {
-                        noteText = noteText.substring(0, noteText.length() - 1); // Remove trailing "*"
+                } else if ((trimmed.startsWith("*Notes:") || trimmed.startsWith("Notes:")) && currentNode != null) {
+                    // Parse note line
+                    String noteText = trimmed;
+                    if (noteText.startsWith("*Notes:")) {
+                        noteText = noteText.substring(7).trim();
+                        if (noteText.endsWith("*")) {
+                            noteText = noteText.substring(0, noteText.length() - 1);
+                        }
+                    } else if (noteText.startsWith("Notes:")) {
+                        noteText = noteText.substring(6).trim();
                     }
                     currentNode.setNotes(noteText.trim());
                 }
@@ -62,14 +67,37 @@ public class MarkdownImporter {
                 // Parse connection
                 if (trimmed.contains("From:") && trimmed.contains("To:")) {
                     try {
-                        String[] parts = trimmed.split(" ");
                         String from = null;
                         String to = null;
                         String type = "NORMAL";
+                        String direction = null;
+                        String protocol = null;
+
+                        // Tokenize by spaces but keep simple parsing for labeled fields
+                        String[] parts = trimmed.split(" ");
                         for (int i = 0; i < parts.length; i++) {
-                            if (parts[i].equals("From:")) from = parts[i+1];
-                            else if (parts[i].equals("To:")) to = parts[i+1];
-                            else if (parts[i].startsWith("(") && parts[i].endsWith(")")) type = parts[i].substring(1, parts[i].length()-1);
+                            String p = parts[i];
+                            if ("From:".equals(p) && i + 1 < parts.length) {
+                                from = parts[i + 1];
+                                i++;
+                            } else if ("To:".equals(p) && i + 1 < parts.length) {
+                                to = parts[i + 1];
+                                i++;
+                            } else if (p.startsWith("(") && p.endsWith(")")) {
+                                type = p.substring(1, p.length() - 1);
+                            } else if ("Direction:".equals(p) && i + 1 < parts.length) {
+                                direction = parts[i + 1];
+                                i++;
+                            } else if ("Protocol:".equals(p) && i + 1 < parts.length) {
+                                // Protocol may contain spaces; capture the rest of the line after this token
+                                StringBuilder protoSb = new StringBuilder();
+                                for (int j = i + 1; j < parts.length; j++) {
+                                    if (protoSb.length() > 0) protoSb.append(" ");
+                                    protoSb.append(parts[j]);
+                                }
+                                protocol = protoSb.toString().trim();
+                                break; // protocol is last meaningful field
+                            }
                         }
                         if (from != null && to != null) {
                             FlowNode fromNode = currentFlow.findNodeById(from);
@@ -81,6 +109,20 @@ public class MarkdownImporter {
                                         conn.setType(FlowConnection.ConnectionType.valueOf(type.toUpperCase()));
                                     } catch (IllegalArgumentException e) {
                                         conn.setType(FlowConnection.ConnectionType.NORMAL);
+                                    }
+                                    // Direction style
+                                    if (direction != null) {
+                                        try {
+                                            conn.setDirectionStyle(FlowConnection.DirectionStyle.valueOf(direction.toUpperCase()));
+                                        } catch (IllegalArgumentException e) {
+                                            // default already set in model
+                                        }
+                                    }
+                                    // Protocol
+                                    if (protocol != null) {
+                                        // Unescape markdown special characters similar to exporter
+                                        String unescaped = protocol.replace("<br>", "\n").replace("\\*", "*").replace("\\_", "_");
+                                        conn.setProtocol(unescaped);
                                     }
                                 }
                             }

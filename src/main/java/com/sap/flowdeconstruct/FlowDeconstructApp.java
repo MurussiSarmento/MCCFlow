@@ -72,11 +72,11 @@ public class FlowDeconstructApp {
         // Load last project or create new one
         projectManager.loadLastProject();
         
-        // Start minimized to tray when supported, otherwise show main window
-        if (traySupported) {
-            mainWindow.setVisible(false);
-        } else {
-            showMainWindow();
+        // Always show main window on startup to avoid confusion when tray is supported
+        showMainWindow();
+        if (traySupported && trayManager != null && trayManager.isInitialized()) {
+            // Provide a gentle hint that app lives in the tray after being closed
+            trayManager.showNotification(APP_NAME, "Running in system tray. Close window to minimize.");
         }
         
         System.out.println(APP_NAME + " v" + APP_VERSION + " initialized successfully.");

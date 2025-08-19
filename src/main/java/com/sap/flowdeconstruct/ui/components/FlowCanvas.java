@@ -11,6 +11,7 @@ import java.awt.event.*;
 import java.awt.geom.AffineTransform;
 import java.awt.geom.Point2D;
 import java.util.List;
+import java.util.ArrayList;
 
 /**
  * Canvas component for rendering and interacting with flow diagrams
@@ -33,6 +34,7 @@ public class FlowCanvas extends JPanel implements MouseListener, MouseMotionList
     private static final int NODE_SPACING_X = 160;
     private static final int NODE_SPACING_Y = 80;
     private static final int CANVAS_MARGIN = 50;
+    private static final String DEFAULT_NODE_TEXT = "New Node";
     
     private FlowDiagram flowDiagram;
     private FlowNode editingNode;
@@ -44,6 +46,7 @@ public class FlowCanvas extends JPanel implements MouseListener, MouseMotionList
     private Point lastMousePos;
     private boolean dragging = false;
     private FlowNode draggingNode = null;
+    private FlowConnection selectedConnection = null;
     
     public FlowCanvas() {
         setBackground(BACKGROUND_COLOR);
@@ -74,14 +77,17 @@ public class FlowCanvas extends JPanel implements MouseListener, MouseMotionList
         
         if (diagram != null) {
             System.out.println("FlowCanvas.setFlowDiagram: Diagram has " + diagram.getNodes().size() + " nodes");
-            // Auto-layout if nodes don't have positions
-            autoLayoutNodes();
+            // Auto-layout only if all nodes are unpositioned (at 0,0)
+            if (allNodesUnpositioned()) {
+                autoLayoutNodes();
+            }
             
             // Add listener for diagram changes
             diagram.addStateListener((d, event, oldValue, newValue) -> {
                 System.out.println("FlowCanvas: Diagram event: " + event);
                 SwingUtilities.invokeLater(() -> {
-                    if ("nodeAdded".equals(event) || "nodeRemoved".equals(event)) {
+                    // Avoid resetting user-arranged positions. Only auto-layout if all nodes are still unpositioned.
+                    if (("nodeAdded".equals(event) || "nodeRemoved".equals(event)) && allNodesUnpositioned()) {
                         autoLayoutNodes();
                     }
                     // Don't repaint during text editing to avoid interrupting the editing process
@@ -138,6 +144,19 @@ public class FlowCanvas extends JPanel implements MouseListener, MouseMotionList
         }
     }
     
+    // Returns true if there is at least one node and all nodes are still at the origin (0,0)
+    private boolean allNodesUnpositioned() {
+        if (flowDiagram == null) return false;
+        List<FlowNode> nodes = flowDiagram.getNodes();
+        if (nodes.isEmpty()) return false;
+        for (FlowNode n : nodes) {
+            if (!(n.getX() == 0 && n.getY() == 0)) {
+                return false;
+            }
+        }
+        return true;
+    }
+    
     @Override
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
@@ -192,13 +211,9 @@ public class FlowCanvas extends JPanel implements MouseListener, MouseMotionList
     private void drawConnections(Graphics2D g2d) {
         if (flowDiagram == null) return;
         
-        g2d.setColor(CONNECTION_COLOR);
-        g2d.setStroke(new BasicStroke(2f));
-        
         for (FlowConnection connection : flowDiagram.getConnections()) {
             FlowNode fromNode = flowDiagram.findNodeById(connection.getFromNodeId());
             FlowNode toNode = flowDiagram.findNodeById(connection.getToNodeId());
-            
             if (fromNode != null && toNode != null) {
                 drawConnection(g2d, fromNode, toNode, connection);
             }
@@ -206,236 +221,212 @@ public class FlowCanvas extends JPanel implements MouseListener, MouseMotionList
     }
     
     private void drawConnection(Graphics2D g2d, FlowNode fromNode, FlowNode toNode, FlowConnection connection) {
-        // Calculate connection points using side midpoints based on relative positions
-        Point2D.Double fromPt = getAnchorPoint(fromNode, toNode);
-        Point2D.Double toPt = getAnchorPoint(toNode, fromNode);
+        Point2D.Double fromPoint = getAnchorPoint(fromNode, toNode);
+        Point2D.Double toPoint = getAnchorPoint(toNode, fromNode);
         
-        // Draw base line
-        g2d.drawLine((int) fromPt.x, (int) fromPt.y, (int) toPt.x, (int) toPt.y);
+        boolean isSelected = (connection == selectedConnection);
+        // Draw main line
+        g2d.setColor(isSelected ? SUBFLOW_INDICATOR_COLOR : CONNECTION_COLOR);
+        g2d.setStroke(new BasicStroke(isSelected ? 3f : 2f));
+        g2d.drawLine((int) fromPoint.x, (int) fromPoint.y, (int) toPoint.x, (int) toPoint.y);
         
-        // Draw arrowheads based on direction style
-        FlowConnection.DirectionStyle dir = connection.getDirectionStyle();
-        if (dir == null) dir = FlowConnection.DirectionStyle.FROM_TO;
-        switch (dir) {
-            case FROM_TO:
-                drawArrowHead(g2d, fromPt.x, fromPt.y, toPt.x, toPt.y);
-                break;
-            case TO_FROM:
-                drawArrowHead(g2d, toPt.x, toPt.y, fromPt.x, fromPt.y);
-                break;
-            case BIDIRECTIONAL:
-                drawArrowHead(g2d, fromPt.x, fromPt.y, toPt.x, toPt.y);
-                drawArrowHead(g2d, toPt.x, toPt.y, fromPt.x, fromPt.y);
-                break;
-            case NONE:
-                // no arrowheads
-                break;
+        // Draw arrowhead(s) according to direction style
+        FlowConnection.DirectionStyle ds = connection.getDirectionStyle();
+        if (ds != null) {
+            switch (ds) {
+                case FROM_TO:
+                    g2d.setColor(isSelected ? SUBFLOW_INDICATOR_COLOR : CONNECTION_COLOR);
+                    drawArrowHead(g2d, fromPoint.x, fromPoint.y, toPoint.x, toPoint.y);
+                    break;
+                case TO_FROM:
+                    g2d.setColor(isSelected ? SUBFLOW_INDICATOR_COLOR : CONNECTION_COLOR);
+                    drawArrowHead(g2d, toPoint.x, toPoint.y, fromPoint.x, fromPoint.y);
+                    break;
+                case BIDIRECTIONAL:
+                    g2d.setColor(isSelected ? SUBFLOW_INDICATOR_COLOR : CONNECTION_COLOR);
+                    drawArrowHead(g2d, fromPoint.x, fromPoint.y, toPoint.x, toPoint.y);
+                    drawArrowHead(g2d, toPoint.x, toPoint.y, fromPoint.x, fromPoint.y);
+                    break;
+                case NONE:
+                    // no arrowheads
+                    break;
+            }
         }
         
-        // Draw protocol label at the midpoint if provided
-        String protocol = connection.getProtocol();
-        if (protocol != null && !protocol.isEmpty()) {
-            double midX = (fromPt.x + toPt.x) / 2.0;
-            double midY = (fromPt.y + toPt.y) / 2.0;
-            drawProtocolLabel(g2d, protocol, (int) midX, (int) midY);
+        // Draw protocol label if exists
+        if (connection.getProtocol() != null && !connection.getProtocol().trim().isEmpty()) {
+            int labelX = (int) ((fromPoint.x + toPoint.x) / 2);
+            int labelY = (int) ((fromPoint.y + toPoint.y) / 2) - 5;
+            drawProtocolLabel(g2d, connection.getProtocol(), labelX, labelY);
         }
     }
     
     private void drawArrowHead(Graphics2D g2d, double fromX, double fromY, double toX, double toY) {
-        double angle = Math.atan2(toY - fromY, toX - fromX);
-        double arrowLength = 8;
-        double arrowAngle = Math.PI / 6;
+        double dx = toX - fromX;
+        double dy = toY - fromY;
+        double angle = Math.atan2(dy, dx);
+        int size = 8;
         
-        double x1 = toX - arrowLength * Math.cos(angle - arrowAngle);
-        double y1 = toY - arrowLength * Math.sin(angle - arrowAngle);
-        double x2 = toX - arrowLength * Math.cos(angle + arrowAngle);
-        double y2 = toY - arrowLength * Math.sin(angle + arrowAngle);
+        int x1 = (int) (toX - size * Math.cos(angle - Math.PI / 6));
+        int y1 = (int) (toY - size * Math.sin(angle - Math.PI / 6));
+        int x2 = (int) (toX - size * Math.cos(angle + Math.PI / 6));
+        int y2 = (int) (toY - size * Math.sin(angle + Math.PI / 6));
         
-        g2d.drawLine((int) toX, (int) toY, (int) x1, (int) y1);
-        g2d.drawLine((int) toX, (int) toY, (int) x2, (int) y2);
+        Polygon arrowHead = new Polygon();
+        arrowHead.addPoint((int) toX, (int) toY);
+        arrowHead.addPoint(x1, y1);
+        arrowHead.addPoint(x2, y2);
+        
+        g2d.fillPolygon(arrowHead);
     }
 
-    // Helper to choose best side midpoint as anchor based on relative vector
     private Point2D.Double getAnchorPoint(FlowNode node, FlowNode other) {
-        double centerX = node.getX() + NODE_WIDTH / 2.0;
-        double centerY = node.getY() + NODE_HEIGHT / 2.0;
-        double dx = (other.getX() + NODE_WIDTH / 2.0) - centerX;
-        double dy = (other.getY() + NODE_HEIGHT / 2.0) - centerY;
-        if (Math.abs(dx) > Math.abs(dy)) {
-            // Connect horizontally
-            if (dx > 0) {
-                // Right side
-                return new Point2D.Double(node.getX() + NODE_WIDTH, centerY);
-            } else {
-                // Left side
-                return new Point2D.Double(node.getX(), centerY);
-            }
-        } else {
-            // Connect vertically
-            if (dy > 0) {
-                // Bottom side
-                return new Point2D.Double(centerX, node.getY() + NODE_HEIGHT);
-            } else {
-                // Top side
-                return new Point2D.Double(centerX, node.getY());
-            }
-        }
+        double x = node.getX();
+        double y = node.getY();
+        double otherX = other.getX();
+        
+        // If the other node is to the right, use the right edge, otherwise use the left edge
+        double anchorX = otherX > x ? x + NODE_WIDTH : x;
+        double anchorY = y + NODE_HEIGHT / 2.0;
+        
+        return new Point2D.Double(anchorX, anchorY);
     }
 
     private void drawProtocolLabel(Graphics2D g2d, String text, int x, int y) {
-        Font original = g2d.getFont();
-        g2d.setFont(MONO_FONT.deriveFont(11f));
-        FontMetrics fm = g2d.getFontMetrics();
-        int paddingX = 6;
-        int paddingY = 3;
-        int textW = fm.stringWidth(text);
-        int textH = fm.getAscent();
-        int boxW = textW + paddingX * 2;
-        int boxH = textH + paddingY * 2;
-        int boxX = x - boxW / 2;
-        int boxY = y - boxH / 2;
+        g2d.setColor(TEXT_COLOR);
+        g2d.setFont(MONO_FONT);
         
-        // Background box
+        FontMetrics fm = g2d.getFontMetrics();
+        int width = fm.stringWidth(text) + 8;
+        int height = fm.getHeight();
+        
+        // Background
         g2d.setColor(new Color(0x3a, 0x3a, 0x3a));
-        g2d.fillRect(boxX, boxY, boxW, boxH);
+        g2d.fillRoundRect(x - width / 2, y - height + 3, width, height, 8, 8);
+        
         // Border
-        g2d.setColor(NODE_SELECTED_COLOR.darker());
-        g2d.drawRect(boxX, boxY, boxW, boxH);
+        g2d.setColor(new Color(0x5f, 0x9e, 0xa0));
+        g2d.drawRoundRect(x - width / 2, y - height + 3, width, height, 8, 8);
+        
         // Text
         g2d.setColor(TEXT_COLOR);
-        g2d.drawString(text, boxX + paddingX, boxY + paddingY + fm.getAscent() - fm.getDescent());
-        g2d.setFont(original);
+        g2d.drawString(text, x - width / 2 + 4, y);
     }
 
-    // Distance from point P to segment AB
     private double distancePointToSegment(Point2D.Double p, Point2D.Double a, Point2D.Double b) {
-        double vx = b.x - a.x, vy = b.y - a.y;
-        double wx = p.x - a.x, wy = p.y - a.y;
-        double c1 = vx * wx + vy * wy;
-        if (c1 <= 0) return p.distance(a);
-        double c2 = vx * vx + vy * vy;
-        if (c2 <= c1) return p.distance(b);
-        double t = c1 / c2;
-        double projX = a.x + t * vx;
-        double projY = a.y + t * vy;
-        double dx = p.x - projX, dy = p.y - projY;
-        return Math.hypot(dx, dy);
+        double abx = b.x - a.x;
+        double aby = b.y - a.y;
+        double apx = p.x - a.x;
+        double apy = p.y - a.y;
+        double ab2 = abx * abx + aby * aby;
+        double ap_ab = apx * abx + apy * aby;
+        double t = Math.max(0, Math.min(1, ap_ab / ab2));
+        double closestX = a.x + abx * t;
+        double closestY = a.y + aby * t;
+        double dx = p.x - closestX;
+        double dy = p.y - closestY;
+        return Math.sqrt(dx * dx + dy * dy);
     }
 
     private FlowConnection findConnectionAt(Point2D.Double worldPos) {
         if (flowDiagram == null) return null;
-        double tolerance = 6.0 / Math.max(zoomLevel, 0.0001); // keep ~6px tolerance irrespective of zoom
-        FlowConnection closest = null;
-        double best = Double.MAX_VALUE;
-        for (FlowConnection c : flowDiagram.getConnections()) {
-            FlowNode from = flowDiagram.findNodeById(c.getFromNodeId());
-            FlowNode to = flowDiagram.findNodeById(c.getToNodeId());
-            if (from == null || to == null) continue;
-            Point2D.Double a = getAnchorPoint(from, to);
-            Point2D.Double b = getAnchorPoint(to, from);
-            double d = distancePointToSegment(worldPos, a, b);
-            if (d < tolerance && d < best) {
-                best = d;
-                closest = c;
+        
+        for (FlowConnection connection : flowDiagram.getConnections()) {
+            FlowNode fromNode = flowDiagram.findNodeById(connection.getFromNodeId());
+            FlowNode toNode = flowDiagram.findNodeById(connection.getToNodeId());
+            if (fromNode == null || toNode == null) continue;
+            
+            Point2D.Double fromPoint = getAnchorPoint(fromNode, toNode);
+            Point2D.Double toPoint = getAnchorPoint(toNode, fromNode);
+            
+            double distance = distancePointToSegment(worldPos, fromPoint, toPoint);
+            if (distance < 6.0) {
+                return connection;
             }
         }
-        return closest;
+        
+        return null;
     }
     
     @Override
     public void mouseClicked(MouseEvent e) {
+        requestFocusInWindow();
         if (flowDiagram == null) return;
         
         Point2D.Double worldPos = screenToWorld(e.getPoint());
         FlowNode clickedNode = findNodeAt(worldPos);
-        
-        if (editingNode != null && clickedNode != editingNode) {
-            System.out.println("FlowCanvas.mouseClicked: Auto-saving current edit due to click elsewhere");
-            finishEditingNode();
+        FlowConnection clickedConnection = null;
+        if (clickedNode == null) {
+            clickedConnection = findConnectionAt(worldPos);
         }
         
         if (clickedNode != null) {
-            flowDiagram.selectNode(clickedNode);
-            
-            if (e.getClickCount() == 2) {
-                startEditingNode(clickedNode);
-            }
-        } else {
-            // Try clicking on a connection
-            FlowConnection clickedConn = findConnectionAt(worldPos);
-            if (clickedConn != null) {
-                // Open connection edit dialog
-                Window w = SwingUtilities.getWindowAncestor(this);
-                Frame parent = (w instanceof Frame) ? (Frame) w : null;
-                ConnectionDialog dialog = new ConnectionDialog(parent, clickedConn);
-                dialog.setVisible(true);
-                if (dialog.isConfirmed()) {
-                    clickedConn.setDirectionStyle(dialog.getSelectedDirectionStyle());
-                    clickedConn.setProtocol(dialog.getProtocol());
-                    repaint();
-                }
-            } else {
-                // Click on empty space - deselect
-                flowDiagram.selectNode(null);
-            }
-        }
-        
-        repaint();
-        requestFocusInWindow();
-    }
-    
-    // In mousePressed
-    @Override
-    public void mousePressed(MouseEvent e) {
-        lastMousePos = e.getPoint();
-        Point2D.Double worldPos = screenToWorld(e.getPoint());
-        FlowNode clickedNode = findNodeAt(worldPos);
-    
-        if (clickedNode != null) {
-            // Se estava editando outro nó, finalizar a edição antes de mudar a seleção
+            selectedConnection = null; // clear connection selection when clicking a node
             if (editingNode != null && clickedNode != editingNode) {
+                // Finish editing previous node when clicking a different node
+                finishEditingNode();
+            } else if (e.getClickCount() == 2) {
+                // Double-click to edit
+                startEditingNode(clickedNode);
+            } else {
+                // Single-click to select
+                flowDiagram.selectNode(clickedNode);
+                repaint();
+            }
+        } else if (clickedConnection != null) {
+            // Selecting a connection
+            flowDiagram.selectNode(null); // clear node selection
+            selectedConnection = clickedConnection;
+            if (e.getClickCount() == 2) {
+                openConnectionDialog(clickedConnection);
+            }
+            repaint();
+        } else {
+            // Clicked empty space: finish editing if any and clear selections
+            if (editingNode != null) {
                 finishEditingNode();
             }
-            // Seleciona o nó clicado (mesmo que ainda não estivesse selecionado)
-            if (flowDiagram != null) {
-                flowDiagram.selectNode(clickedNode);
-            }
-            // Permite arrastar imediatamente após pressionar sobre o nó
-            draggingNode = clickedNode;
-        } else {
-            draggingNode = null;
+            selectedConnection = null;
+            flowDiagram.selectNode(null);
+            repaint();
         }
-        requestFocusInWindow();
     }
     
-    // In mouseDragged
+    @Override
+    public void mousePressed(MouseEvent e) {
+        requestFocusInWindow();
+        if (flowDiagram == null) return;
+        
+        // Show context menu if applicable
+        if (maybeShowConnectionPopup(e)) return;
+        
+        Point2D.Double worldPos = screenToWorld(e.getPoint());
+        FlowNode clickedNode = findNodeAt(worldPos);
+        if (clickedNode != null) {
+            dragging = true;
+            draggingNode = clickedNode;
+            lastMousePos = e.getPoint();
+        } else {
+            // Start panning
+            lastMousePos = e.getPoint();
+        }
+    }
+    
     @Override
     public void mouseDragged(MouseEvent e) {
-        if (lastMousePos == null) return;
+        if (flowDiagram == null) return;
         
-        if (draggingNode != null) {
-            // Calculate movement delta in screen coordinates
-            int screenDx = e.getX() - lastMousePos.x;
-            int screenDy = e.getY() - lastMousePos.y;
+        if (dragging && draggingNode != null) {
+            Point2D.Double worldPos = screenToWorld(e.getPoint());
+            int newX = (int) (worldPos.x - NODE_WIDTH / 2);
+            int newY = (int) (worldPos.y - NODE_HEIGHT / 2);
             
-            // Convert to world coordinates (accounting for zoom)
-            int worldDx = (int)(screenDx / zoomLevel);
-            int worldDy = (int)(screenDy / zoomLevel);
-            
-            // Apply movement to the node
-            int newX = (int)draggingNode.getX() + worldDx;
-            int newY = (int)draggingNode.getY() + worldDy;
-            
-            // Apply canvas bounds
-            newX = Math.max(10, Math.min(newX, 2000 - 150));
-            newY = Math.max(10, Math.min(newY, 1500 - 80));
-            
+            // Prevent overlapping too tightly
             if (!wouldOverlap(draggingNode, newX, newY)) {
                 draggingNode.setPosition(newX, newY);
                 repaint();
             }
-        } else {
-            // Pan the view
+        } else if (lastMousePos != null) {
             int dx = e.getX() - lastMousePos.x;
             int dy = e.getY() - lastMousePos.y;
             viewOffset.x += dx;
@@ -450,6 +441,12 @@ public class FlowCanvas extends JPanel implements MouseListener, MouseMotionList
     // In mouseReleased
     @Override
     public void mouseReleased(MouseEvent e) {
+        // Show context menu if applicable
+        if (maybeShowConnectionPopup(e)) {
+            dragging = false;
+            draggingNode = null;
+            return;
+        }
         dragging = false;
         draggingNode = null;
     }
@@ -519,7 +516,6 @@ public class FlowCanvas extends JPanel implements MouseListener, MouseMotionList
             } else if (Character.isISOControl(keyChar)) {
                 // Ignore other control characters
                 System.out.println("FlowCanvas.handleKeyTyped: Ignoring control character");
-                return;
             } else {
                 editingText += keyChar;
                 System.out.println("FlowCanvas.handleKeyTyped: After adding char, editingText: '" + editingText + "'");
@@ -556,33 +552,27 @@ public class FlowCanvas extends JPanel implements MouseListener, MouseMotionList
             parent = parent.getParent();
         }
     }
-
+    
     @Override
     public void keyTyped(KeyEvent e) {
         if (editingNode != null) {
             handleKeyTyped(e.getKeyChar());
         }
     }
-
+    
     @Override
     public void keyReleased(KeyEvent e) {
         // Not used
     }
     
-    // FocusListener implementation
     @Override
     public void focusGained(FocusEvent e) {
-        // Not used - no special action needed when gaining focus
-        System.out.println("FlowCanvas.focusGained: Canvas gained focus");
+        // Optional: could show focus state
     }
     
     @Override
     public void focusLost(FocusEvent e) {
-        // Auto-save when losing focus during editing
-        if (editingNode != null) {
-            System.out.println("FlowCanvas.focusLost: Auto-saving current edit due to focus loss");
-            finishEditingNode();
-        }
+        // Optional: could hide focus state
     }
     
     // Methods required by MainWindow
@@ -600,7 +590,8 @@ public class FlowCanvas extends JPanel implements MouseListener, MouseMotionList
         if (node == null) return;
         finishEditingNode(); // Finish any current editing
         editingNode = node;
-        editingText = node.getText();
+        String currentText = node.getText();
+        editingText = DEFAULT_NODE_TEXT.equals(currentText) ? "" : currentText;
         repaint();
     }
 
@@ -621,20 +612,31 @@ public class FlowCanvas extends JPanel implements MouseListener, MouseMotionList
         
         if (selectedNode != null) {
             // Create new node and connect to selected node
-            newNode = flowDiagram.addNode("New Node", 
+            newNode = flowDiagram.addNode(DEFAULT_NODE_TEXT, 
                 (int)selectedNode.getX() + NODE_SPACING_X,
                 (int)selectedNode.getY());
             flowDiagram.addConnection(selectedNode, newNode);
         } else {
-            // Create first node or new isolated node
-            newNode = flowDiagram.addNode("New Node");
+            // Create first node or new isolated node with a sensible position
+            List<FlowNode> nodes = flowDiagram.getNodes();
+            if (nodes.isEmpty()) {
+                newNode = flowDiagram.addNode(DEFAULT_NODE_TEXT, CANVAS_MARGIN, CANVAS_MARGIN);
+            } else {
+                int maxX = Integer.MIN_VALUE;
+                int minY = Integer.MAX_VALUE;
+                for (FlowNode n : nodes) {
+                    maxX = Math.max(maxX, (int) n.getX());
+                    minY = Math.min(minY, (int) n.getY());
+                }
+                newNode = flowDiagram.addNode(DEFAULT_NODE_TEXT, maxX + NODE_SPACING_X, minY);
+            }
         }
         
         flowDiagram.selectNode(newNode);
         startEditingNode(newNode);
         repaint();
     }
-
+    
     private void drawNodes(Graphics2D g2d) {
         if (flowDiagram == null) return;
         
@@ -642,64 +644,212 @@ public class FlowCanvas extends JPanel implements MouseListener, MouseMotionList
             drawNode(g2d, node);
         }
     }
-
+    
     private void drawNode(Graphics2D g2d, FlowNode node) {
         int x = (int) node.getX();
         int y = (int) node.getY();
         
-        // Determine node state
-        boolean isSelected = node.isSelected();
+        boolean isSelected = flowDiagram.getSelectedNode() == node;
         boolean isEditing = (editingNode == node);
         
-        // Choose colors based on state
-        Color bgColor = NODE_COLOR;
-        if (isEditing) {
-            bgColor = NODE_EDITING_COLOR;
-        } else if (isSelected) {
-            bgColor = NODE_SELECTED_COLOR;
-        }
+        // Node background
+        g2d.setColor(isEditing ? NODE_EDITING_COLOR : (isSelected ? NODE_SELECTED_COLOR : NODE_COLOR));
+        g2d.fillRoundRect(x, y, NODE_WIDTH, NODE_HEIGHT, 12, 12);
         
-        // Draw node background
-        g2d.setColor(bgColor);
-        g2d.fillRect(x, y, NODE_WIDTH, NODE_HEIGHT);
+        // Border
+        g2d.setColor(isSelected ? SUBFLOW_INDICATOR_COLOR : CONNECTION_COLOR);
+        g2d.drawRoundRect(x, y, NODE_WIDTH, NODE_HEIGHT, 12, 12);
         
-        // Draw border
-        g2d.setColor(isSelected ? NODE_SELECTED_COLOR.brighter() : CONNECTION_COLOR);
-        g2d.drawRect(x, y, NODE_WIDTH, NODE_HEIGHT);
-        
-        // Draw text
+        // Node text
         g2d.setColor(TEXT_COLOR);
         g2d.setFont(MONO_FONT);
-        FontMetrics fm = g2d.getFontMetrics();
         
         String text = isEditing ? editingText : node.getText();
-        if (text == null) text = "";
-        
-        // Simple text centering
-        int textX = x + (NODE_WIDTH - fm.stringWidth(text)) / 2;
-        int textY = y + (NODE_HEIGHT + fm.getAscent()) / 2 - fm.getDescent();
-        
+        FontMetrics fm = g2d.getFontMetrics();
+        int textX = x + 10;
+        int textY = y + (NODE_HEIGHT + fm.getAscent() - fm.getDescent()) / 2;
         g2d.drawString(text, textX, textY);
         
-        // Draw subflow indicator if node has subflow
+        // Subflow indicator
         if (node.hasSubFlow()) {
+            int indicatorSize = 8;
+            int indicatorX = x + NODE_WIDTH - indicatorSize - 6;
+            int indicatorY = y + NODE_HEIGHT - indicatorSize - 6;
             g2d.setColor(SUBFLOW_INDICATOR_COLOR);
-            g2d.fillOval(x + NODE_WIDTH - 12, y + 4, 8, 8);
+            g2d.fillOval(indicatorX, indicatorY, indicatorSize, indicatorSize);
         }
-        
-        // Draw notes indicator if node has notes
-        if (node.hasNotes()) {
-            g2d.setColor(TEXT_COLOR.darker());
-            g2d.fillRect(x + NODE_WIDTH - 8, y + NODE_HEIGHT - 8, 4, 4);
-        }
-        
-        // Draw editing cursor if this node is being edited
-        if (isEditing) {
-            long time = System.currentTimeMillis();
-            if ((time / 500) % 2 == 0) { // Blink every 500ms
-                int cursorX = textX + fm.stringWidth(editingText);
-                g2d.drawLine(cursorX, textY - fm.getAscent(), cursorX, textY);
+    }
+
+    // ---------- Connection editing helpers ----------
+    private void openConnectionDialog(FlowConnection connection) {
+        Window window = SwingUtilities.getWindowAncestor(this);
+        Frame owner = (window instanceof Frame) ? (Frame) window : null;
+        ConnectionDialog dialog = new ConnectionDialog(owner, connection);
+        dialog.setLocationRelativeTo(this);
+        dialog.setVisible(true);
+        if (dialog.isConfirmed()) {
+            connection.setDirectionStyle(dialog.getSelectedDirectionStyle());
+            connection.setProtocol(dialog.getProtocol());
+            // trigger diagram modified time and listeners
+            if (flowDiagram != null) {
+                List<FlowConnection> updated = new ArrayList<>(flowDiagram.getConnections());
+                flowDiagram.setConnections(updated);
             }
+            repaint();
+        }
+    }
+
+    private void reverseDirection(FlowConnection connection) {
+        FlowConnection.DirectionStyle ds = connection.getDirectionStyle();
+        if (ds == FlowConnection.DirectionStyle.FROM_TO) {
+            connection.setDirectionStyle(FlowConnection.DirectionStyle.TO_FROM);
+        } else if (ds == FlowConnection.DirectionStyle.TO_FROM) {
+            connection.setDirectionStyle(FlowConnection.DirectionStyle.FROM_TO);
+        } else {
+            // keep as is for BIDIRECTIONAL and NONE
+        }
+        if (flowDiagram != null) {
+            List<FlowConnection> updated = new ArrayList<>(flowDiagram.getConnections());
+            flowDiagram.setConnections(updated);
+        }
+        repaint();
+    }
+
+    private void showConnectionPopup(int x, int y, FlowConnection connection) {
+        JPopupMenu popup = new JPopupMenu();
+        JMenuItem edit = new JMenuItem("Edit Connection...");
+        edit.addActionListener(ev -> openConnectionDialog(connection));
+        popup.add(edit);
+
+        JMenuItem reverse = new JMenuItem("Reverse Direction");
+        reverse.addActionListener(ev -> reverseDirection(connection));
+        popup.add(reverse);
+
+        popup.addSeparator();
+        JMenuItem dirFromTo = new JMenuItem("Direction: FROM → TO");
+        dirFromTo.addActionListener(ev -> {
+            connection.setDirectionStyle(FlowConnection.DirectionStyle.FROM_TO);
+            if (flowDiagram != null) {
+                List<FlowConnection> updated = new ArrayList<>(flowDiagram.getConnections());
+                flowDiagram.setConnections(updated);
+            }
+            repaint();
+        });
+        popup.add(dirFromTo);
+
+        JMenuItem dirToFrom = new JMenuItem("Direction: TO → FROM");
+        dirToFrom.addActionListener(ev -> {
+            connection.setDirectionStyle(FlowConnection.DirectionStyle.TO_FROM);
+            if (flowDiagram != null) {
+                List<FlowConnection> updated = new ArrayList<>(flowDiagram.getConnections());
+                flowDiagram.setConnections(updated);
+            }
+            repaint();
+        });
+        popup.add(dirToFrom);
+
+        JMenuItem dirBi = new JMenuItem("Direction: Bidirectional");
+        dirBi.addActionListener(ev -> {
+            connection.setDirectionStyle(FlowConnection.DirectionStyle.BIDIRECTIONAL);
+            if (flowDiagram != null) {
+                List<FlowConnection> updated = new ArrayList<>(flowDiagram.getConnections());
+                flowDiagram.setConnections(updated);
+            }
+            repaint();
+        });
+        popup.add(dirBi);
+
+        JMenuItem dirNone = new JMenuItem("Direction: None");
+        dirNone.addActionListener(ev -> {
+            connection.setDirectionStyle(FlowConnection.DirectionStyle.NONE);
+            if (flowDiagram != null) {
+                List<FlowConnection> updated = new ArrayList<>(flowDiagram.getConnections());
+                flowDiagram.setConnections(updated);
+            }
+            repaint();
+        });
+        popup.add(dirNone);
+
+        popup.show(this, x, y);
+    }
+
+    private boolean maybeShowConnectionPopup(MouseEvent e) {
+        if (e.isPopupTrigger() || SwingUtilities.isRightMouseButton(e)) {
+            Point2D.Double worldPos = screenToWorld(e.getPoint());
+            FlowConnection conn = findConnectionAt(worldPos);
+            if (conn != null) {
+                selectedConnection = conn;
+                showConnectionPopup(e.getX(), e.getY(), conn);
+                return true;
+            }
+        }
+        return false;
+    }
+    
+    // Keyboard navigation between nodes (used by MainWindow)
+    public void navigateNodes(int keyCode) {
+        if (flowDiagram == null) return;
+        java.util.List<FlowNode> nodes = flowDiagram.getNodes();
+        if (nodes.isEmpty()) return;
+    
+        FlowNode current = flowDiagram.getSelectedNode();
+        if (current == null) {
+            flowDiagram.selectNode(nodes.get(0));
+            repaint();
+            return;
+        }
+    
+        double cx = current.getX() + NODE_WIDTH / 2.0;
+        double cy = current.getY() + NODE_HEIGHT / 2.0;
+    
+        FlowNode best = null;
+        double bestDist = Double.MAX_VALUE;
+        FlowNode fallback = null;
+        double fallbackDist = Double.MAX_VALUE;
+    
+        for (FlowNode n : nodes) {
+            if (n == current) continue;
+            double nx = n.getX() + NODE_WIDTH / 2.0;
+            double ny = n.getY() + NODE_HEIGHT / 2.0;
+            double dx = nx - cx;
+            double dy = ny - cy;
+            double dist = Math.hypot(dx, dy);
+    
+            boolean inDirection = false;
+            switch (keyCode) {
+                case KeyEvent.VK_RIGHT:
+                    inDirection = dx > 0;
+                    break;
+                case KeyEvent.VK_LEFT:
+                    inDirection = dx < 0;
+                    break;
+                case KeyEvent.VK_UP:
+                    inDirection = dy < 0;
+                    break;
+                case KeyEvent.VK_DOWN:
+                    inDirection = dy > 0;
+                    break;
+                default:
+                    return; // unsupported key
+            }
+    
+            if (inDirection) {
+                if (dist < bestDist) {
+                    bestDist = dist;
+                    best = n;
+                }
+            }
+            // Always compute nearest for fallback
+            if (dist < fallbackDist) {
+                fallbackDist = dist;
+                fallback = n;
+            }
+        }
+    
+        FlowNode target = (best != null) ? best : fallback;
+        if (target != null) {
+            flowDiagram.selectNode(target);
+            repaint();
         }
     }
 }

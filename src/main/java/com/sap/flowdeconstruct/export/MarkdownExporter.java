@@ -39,7 +39,16 @@ public class MarkdownExporter {
         sb.append("\n## Connections\n");
         List<FlowConnection> connections = flow.getConnections();
         for (FlowConnection conn : connections) {
-            sb.append(indent).append("From: ").append(conn.getFromNodeId()).append(" To: ").append(conn.getToNodeId()).append(" (").append(conn.getType()).append(")\n");
+            sb.append(indent)
+              .append("From: ").append(conn.getFromNodeId())
+              .append(" To: ").append(conn.getToNodeId())
+              .append(" (").append(conn.getType()).append(")")
+              .append(" Direction: ").append(conn.getDirectionStyle());
+            String protocol = conn.getProtocol();
+            if (protocol != null && !protocol.trim().isEmpty()) {
+                sb.append(" Protocol: ").append(escapeMarkdown(protocol.trim()));
+            }
+            sb.append("\n");
         }
         sb.append("\n");
     }
