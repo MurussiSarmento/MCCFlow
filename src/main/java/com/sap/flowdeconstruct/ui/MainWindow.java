@@ -14,6 +14,9 @@ import javax.swing.JButton;
 import java.util.Stack;
 
 import com.sap.flowdeconstruct.ui.components.FlowCanvas;
+import com.sap.flowdeconstruct.export.MarkdownExporter;
+import com.sap.flowdeconstruct.importer.MarkdownImporter;
+import com.sap.flowdeconstruct.ui.dialogs.ImportDialog;
 
 /**
  * Main application window containing the flow canvas and all UI components
@@ -81,6 +84,18 @@ public class MainWindow extends JFrame implements KeyListener {
     private void initializeComponents() {
         System.out.println("MainWindow: Initializing components...");
         setLayout(new BorderLayout());
+        
+        // Create and set menu bar
+        JMenuBar menuBar = new JMenuBar();
+        JMenu fileMenu = new JMenu("File");
+        JMenuItem saveMdItem = new JMenuItem("Save as Markdown");
+        saveMdItem.addActionListener(e -> saveAsMarkdown());
+        JMenuItem loadMdItem = new JMenuItem("Load from Markdown");
+        loadMdItem.addActionListener(e -> importFlow());
+        fileMenu.add(saveMdItem);
+        fileMenu.add(loadMdItem);
+        menuBar.add(fileMenu);
+        setJMenuBar(menuBar);
         
         // Top bar with breadcrumb and help hint
         JPanel topBar = createTopBar();
@@ -758,12 +773,21 @@ public class MainWindow extends JFrame implements KeyListener {
         dialog.setVisible(true);
         
         if (dialog.isConfirmed()) {
-            // Export logic would go here
-            // For now, just show a message
-            JOptionPane.showMessageDialog(this, 
-                "Export functionality will be implemented in the next phase.", 
-                "Export", 
-                JOptionPane.INFORMATION_MESSAGE);
+            String filePath = dialog.getFilePath();
+            boolean includeNotes = dialog.isIncludeNotes();
+            boolean includeSubflows = dialog.isIncludeSubflows();
+            if (filePath.endsWith(".md")) {
+                try {
+                    // Use ProjectManager.saveToMarkdown for consistency
+                    projectManager.saveToMarkdown(filePath, includeNotes, includeSubflows);
+                    JOptionPane.showMessageDialog(this, "Flow exported to Markdown successfully!", "Export Success", JOptionPane.INFORMATION_MESSAGE);
+                } catch (Exception ex) {
+                    JOptionPane.showMessageDialog(this, "Error exporting to Markdown: " + ex.getMessage(), "Export Error", JOptionPane.ERROR_MESSAGE);
+                }
+            } else {
+                // Handle other formats like PDF here if implemented
+                JOptionPane.showMessageDialog(this, "Export format not supported yet.", "Export", JOptionPane.INFORMATION_MESSAGE);
+            }
         }
     }
     
@@ -836,6 +860,52 @@ public class MainWindow extends JFrame implements KeyListener {
         
         // Exit
         System.exit(0);
+    }
+    
+    private void importFlow() {
+        // Auto-save any current editing before importing
+        if (canvas != null && canvas.isEditingNode()) {
+            canvas.finishEditingNode();
+        }
+        
+        ImportDialog dialog = new ImportDialog(this);
+        dialog.setVisible(true);
+        
+        if (dialog.isConfirmed()) {
+            String filePath = dialog.getFilePath();
+            try {
+                FlowDiagram importedFlow = projectManager.loadFromMarkdown(filePath);
+                setCurrentFlow(importedFlow);
+                JOptionPane.showMessageDialog(this, "Flow imported from Markdown successfully!", "Import Success", JOptionPane.INFORMATION_MESSAGE);
+            } catch (Exception ex) {
+                JOptionPane.showMessageDialog(this, "Error importing from Markdown: " + ex.getMessage(), "Import Error", JOptionPane.ERROR_MESSAGE);
+            }
+        }
+    }
+    
+    private void saveAsMarkdown() {
+        if (currentFlow == null) {
+            JOptionPane.showMessageDialog(this, "No flow to save!", "Save Error", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+        
+        JFileChooser fileChooser = new JFileChooser();
+        fileChooser.setDialogTitle("Save as Markdown");
+        fileChooser.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter("Markdown files (*.md)", "md"));
+        
+        if (fileChooser.showSaveDialog(this) == JFileChooser.APPROVE_OPTION) {
+            String filePath = fileChooser.getSelectedFile().getPath();
+            if (!filePath.endsWith(".md")) {
+                filePath += ".md";
+            }
+            
+            try {
+                projectManager.saveToMarkdown(filePath, true, true); // Default to include notes and subflows
+                JOptionPane.showMessageDialog(this, "Flow saved as Markdown successfully!", "Save Success", JOptionPane.INFORMATION_MESSAGE);
+            } catch (Exception ex) {
+                JOptionPane.showMessageDialog(this, "Error saving as Markdown: " + ex.getMessage(), "Save Error", JOptionPane.ERROR_MESSAGE);
+            }
+        }
     }
     
     @Override

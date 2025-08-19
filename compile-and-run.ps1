@@ -31,11 +31,15 @@ $baseUrl = "https://repo1.maven.org/maven2/com/fasterxml/jackson"
 $dependencies = @(
     @{name="jackson-core"; url="$baseUrl/core/jackson-core/$jacksonVersion/jackson-core-$jacksonVersion.jar"},
     @{name="jackson-databind"; url="$baseUrl/core/jackson-databind/$jacksonVersion/jackson-databind-$jacksonVersion.jar"},
-    @{name="jackson-annotations"; url="$baseUrl/core/jackson-annotations/$jacksonVersion/jackson-annotations-$jacksonVersion.jar"}
+    @{name="jackson-annotations"; url="$baseUrl/core/jackson-annotations/$jacksonVersion/jackson-annotations-$jacksonVersion.jar"},
+    @{name="commonmark"; url="https://repo1.maven.org/maven2/org/commonmark/commonmark/0.21.0/commonmark-0.21.0.jar"}
 )
 
 foreach ($dep in $dependencies) {
     $jarFile = "$libDir\$($dep.name)-$jacksonVersion.jar"
+    if ($dep.name -eq 'commonmark') {
+        $jarFile = "$libDir\commonmark-0.21.0.jar"
+    }
     if (!(Test-Path $jarFile)) {
         Write-Host "Downloading $($dep.name)..." -ForegroundColor Cyan
         try {

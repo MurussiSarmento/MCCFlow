@@ -4,6 +4,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.sap.flowdeconstruct.model.FlowDiagram;
 import com.sap.flowdeconstruct.model.FlowNode;
+import com.sap.flowdeconstruct.export.MarkdownExporter;
+import com.sap.flowdeconstruct.importer.MarkdownImporter;
 
 import java.io.*;
 import java.nio.file.*;
@@ -318,6 +320,30 @@ public class ProjectManager {
         @Override
         public String toString() {
             return name + " (" + lastModified + ")";
+        }
+    }
+    
+    public void saveToMarkdown(String filePath, boolean includeNotes, boolean includeSubflows) {
+        if (currentProject == null) return;
+        try {
+            MarkdownExporter exporter = new MarkdownExporter();
+            exporter.export(currentProject, filePath, includeNotes, includeSubflows);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to save to Markdown: " + e.getMessage(), e);
+        }
+    }
+
+    public FlowDiagram loadFromMarkdown(String filePath) {
+        try {
+            MarkdownImporter importer = new MarkdownImporter();
+            FlowDiagram flow = importer.importFlow(filePath);
+            System.out.println("Loading Markdown from: " + filePath);
+            setCurrentProject(flow, filePath);
+            System.out.println("Loaded flow with name: " + flow.getName());
+            notifyListeners("projectLoaded", null, flow);
+            return flow;
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to load from Markdown: " + e.getMessage(), e);
         }
     }
     
