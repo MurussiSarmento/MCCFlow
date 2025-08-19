@@ -15,15 +15,22 @@ public class SystemTrayManager {
     private final MainWindow mainWindow;
     private TrayIcon trayIcon;
     private SystemTray systemTray;
+    private boolean initialized;
     
     public SystemTrayManager(MainWindow mainWindow) {
         this.mainWindow = mainWindow;
+        this.initialized = false;
         initializeSystemTray();
+    }
+    
+    public boolean isInitialized() {
+        return initialized;
     }
     
     private void initializeSystemTray() {
         if (!SystemTray.isSupported()) {
             System.err.println("System tray is not supported");
+            initialized = false;
             return;
         }
         
@@ -45,8 +52,10 @@ public class SystemTrayManager {
         // Add to system tray
         try {
             systemTray.add(trayIcon);
+            initialized = true;
         } catch (AWTException e) {
             System.err.println("Failed to add tray icon: " + e.getMessage());
+            initialized = false;
         }
     }
     

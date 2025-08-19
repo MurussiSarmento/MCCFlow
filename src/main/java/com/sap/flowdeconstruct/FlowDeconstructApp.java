@@ -45,14 +45,14 @@ public class FlowDeconstructApp {
     }
     
     private void initialize() {
-        // Check if system tray is supported
-        if (!SystemTray.isSupported()) {
+        // Check if system tray is supported (do NOT exit app if unsupported)
+        boolean traySupported = SystemTray.isSupported();
+        if (!traySupported) {
             JOptionPane.showMessageDialog(null, 
                 "System tray is not supported on this platform.\n" +
-                "FlowDeconstruct requires system tray support.", 
-                "System Requirements", 
-                JOptionPane.ERROR_MESSAGE);
-            System.exit(1);
+                "FlowDeconstruct will start with the main window visible.", 
+                "System Tray Unavailable", 
+                JOptionPane.INFORMATION_MESSAGE);
         }
         
         // Initialize core components
@@ -60,7 +60,11 @@ public class FlowDeconstructApp {
         
         // Initialize UI components
         mainWindow = new MainWindow(projectManager);
-        trayManager = new SystemTrayManager(mainWindow);
+        if (traySupported) {
+            trayManager = new SystemTrayManager(mainWindow);
+        } else {
+            trayManager = null; // Explicit for clarity
+        }
         
         // Setup application behavior
         setupApplicationBehavior();
@@ -68,8 +72,12 @@ public class FlowDeconstructApp {
         // Load last project or create new one
         projectManager.loadLastProject();
         
-        // Start minimized to tray
-        mainWindow.setVisible(false);
+        // Start minimized to tray when supported, otherwise show main window
+        if (traySupported) {
+            mainWindow.setVisible(false);
+        } else {
+            showMainWindow();
+        }
         
         System.out.println(APP_NAME + " v" + APP_VERSION + " initialized successfully.");
     }
@@ -85,12 +93,12 @@ public class FlowDeconstructApp {
             }
         });
         
-        // Setup global hotkey (Ctrl+Shift+F)
+        // Setup hotkey (note: this is app-scoped, not OS-global)
         setupGlobalHotkey();
     }
     
     private void setupGlobalHotkey() {
-        // Register global hotkey Ctrl+Shift+F to show/focus window
+        // Register hotkey Ctrl+Shift+F to show/focus window while app has focus
         KeyboardFocusManager.getCurrentKeyboardFocusManager()
             .addKeyEventDispatcher(e -> {
                 if (e.getID() == java.awt.event.KeyEvent.KEY_PRESSED &&
@@ -123,7 +131,9 @@ public class FlowDeconstructApp {
         projectManager.saveCurrentProject();
         
         // Clean up system tray
-        trayManager.cleanup();
+        if (trayManager != null) {
+            trayManager.cleanup();
+        }
         
         // Exit application
         System.exit(0);
