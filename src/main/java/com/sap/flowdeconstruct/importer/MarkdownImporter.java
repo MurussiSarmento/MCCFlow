@@ -50,6 +50,19 @@ public class MarkdownImporter {
                             currentNode = flowNode;
                         }
                     }
+                } else if ((trimmed.startsWith("Position:")) && currentNode != null) {
+                    // Parse position line: Position: x, y
+                    try {
+                        String coords = trimmed.substring("Position:".length()).trim();
+                        String[] parts = coords.split(",");
+                        if (parts.length >= 2) {
+                            int x = Integer.parseInt(parts[0].trim());
+                            int y = Integer.parseInt(parts[1].trim());
+                            currentNode.setPosition(x, y);
+                        }
+                    } catch (Exception ignore) {
+                        // If parsing fails, keep default position (0,0)
+                    }
                 } else if ((trimmed.startsWith("*Notes:") || trimmed.startsWith("Notes:")) && currentNode != null) {
                     // Parse note line
                     String noteText = trimmed;

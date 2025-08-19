@@ -28,6 +28,8 @@ public class MarkdownExporter {
         List<FlowNode> nodes = flow.getNodes();
         for (FlowNode node : nodes) {
             sb.append(indent).append("[").append(node.getId()).append("] ").append(escapeMarkdown(node.getText())).append("\n");
+            // Write node position so it can be preserved on import
+            sb.append(indent).append("  Position: ").append((int) node.getX()).append(", ").append((int) node.getY()).append("\n");
             if (includeNotes && !node.getNotes().isEmpty()) {
                 sb.append(indent).append("  *Notes: ").append(escapeMarkdown(node.getNotes())).append("*\n");
             }
