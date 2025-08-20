@@ -2,6 +2,7 @@ package com.sap.flowdeconstruct.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import java.awt.Point;
+import java.awt.Color;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -12,11 +13,24 @@ import java.util.UUID;
  */
 public class FlowNode {
     
+    public enum NodeShape {
+        RECTANGLE,
+        SQUARE,
+        CIRCLE,
+        OVAL,
+        DIAMOND
+    }
+    
     private String id;
     private String text;
     private String notes;
     private Point position;
     private FlowDiagram subFlow;
+
+    // Customization (persisted)
+    private String fillColorHex; // e.g. "#3a3a3a"
+    private String borderColorHex; // e.g. "#666666"
+    private NodeShape shape = NodeShape.RECTANGLE;
     
     // UI state (not persisted)
     @JsonIgnore
@@ -34,6 +48,10 @@ public class FlowNode {
         this.selected = false;
         this.editing = false;
         this.listeners = new ArrayList<>();
+        // defaults based on current UI palette
+        this.fillColorHex = "#3a3a3a";
+        this.borderColorHex = "#666666";
+        this.shape = NodeShape.RECTANGLE;
     }
     
     public FlowNode(String text) {
@@ -134,6 +152,37 @@ public class FlowNode {
     public boolean hasNotes() {
         return notes != null && !notes.trim().isEmpty();
     }
+
+    // Customization accessors
+    public String getFillColorHex() {
+        return fillColorHex;
+    }
+
+    public void setFillColorHex(String fillColorHex) {
+        String old = this.fillColorHex;
+        this.fillColorHex = fillColorHex;
+        notifyListeners("fillColorHex", old, fillColorHex);
+    }
+
+    public String getBorderColorHex() {
+        return borderColorHex;
+    }
+
+    public void setBorderColorHex(String borderColorHex) {
+        String old = this.borderColorHex;
+        this.borderColorHex = borderColorHex;
+        notifyListeners("borderColorHex", old, borderColorHex);
+    }
+
+    public NodeShape getShape() {
+        return shape;
+    }
+
+    public void setShape(NodeShape shape) {
+        NodeShape old = this.shape;
+        this.shape = shape != null ? shape : NodeShape.RECTANGLE;
+        notifyListeners("shape", old, this.shape);
+    }
     
     // Listener management
     public void addStateListener(NodeStateListener listener) {
@@ -175,6 +224,9 @@ public class FlowNode {
                 ", hasNotes=" + hasNotes() +
                 ", hasSubFlow=" + hasSubFlow() +
                 ", position=" + position +
+                ", shape=" + shape +
+                ", fillColorHex=" + fillColorHex +
+                ", borderColorHex=" + borderColorHex +
                 '}';
     }
     

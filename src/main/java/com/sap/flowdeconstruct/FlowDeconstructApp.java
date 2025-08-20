@@ -58,6 +58,10 @@ public class FlowDeconstructApp {
         // Initialize core components
         projectManager = new ProjectManager();
         
+        // Load last project or create new one BEFORE creating the main window,
+        // so MainWindow can immediately bind a non-null FlowDiagram
+        projectManager.loadLastProject();
+        
         // Initialize UI components
         mainWindow = new MainWindow(projectManager);
         if (traySupported) {
@@ -69,11 +73,16 @@ public class FlowDeconstructApp {
         // Setup application behavior
         setupApplicationBehavior();
         
-        // Load last project or create new one
-        projectManager.loadLastProject();
-        
         // Always show main window on startup to avoid confusion when tray is supported
         showMainWindow();
+        
+        // Extra: ensure the window really comes to front on startup (single-shot)
+        javax.swing.Timer startupBringToFrontTimer = new javax.swing.Timer(450, e -> {
+            bringToFrontReliably();
+        });
+        startupBringToFrontTimer.setRepeats(false);
+        startupBringToFrontTimer.start();
+        
         if (traySupported && trayManager != null && trayManager.isInitialized()) {
             // Provide a gentle hint that app lives in the tray after being closed
             trayManager.showNotification(APP_NAME, "Running in system tray. Close window to minimize.");
@@ -124,6 +133,30 @@ public class FlowDeconstructApp {
         mainWindow.setState(JFrame.NORMAL);
         mainWindow.toFront();
         mainWindow.requestFocus();
+    }
+    
+    // Ensures the window is brought to the very front reliably on Windows
+    private void bringToFrontReliably() {
+        if (mainWindow == null) return;
+        SwingUtilities.invokeLater(() -> {
+            try {
+                mainWindow.setVisible(true);
+                mainWindow.setState(JFrame.NORMAL);
+                mainWindow.toFront();
+                mainWindow.requestFocus();
+                // Temporarily set always-on-top to guarantee frontmost, then revert (single-shot revert)
+                boolean previousAlwaysOnTop = mainWindow.isAlwaysOnTop();
+                mainWindow.setAlwaysOnTop(true);
+                javax.swing.Timer revertAlwaysOnTopTimer = new javax.swing.Timer(700, new ActionListener() {
+                    @Override
+                    public void actionPerformed(ActionEvent e) {
+                        mainWindow.setAlwaysOnTop(previousAlwaysOnTop);
+                    }
+                });
+                revertAlwaysOnTopTimer.setRepeats(false);
+                revertAlwaysOnTopTimer.start();
+            } catch (Exception ignored) {}
+        });
     }
     
     public void exitApplication() {

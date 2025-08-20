@@ -702,7 +702,13 @@ public class MainWindow extends JFrame implements KeyListener {
             return;
         }
         if (currentFlow == null) {
-            System.out.println("ERROR: currentFlow is null");
+            System.out.println("WARN: currentFlow is null - creating a new project automatically");
+            FlowDiagram newFlow = projectManager.createNewProject();
+            // Ensure UI is bound immediately
+            setCurrentFlow(newFlow);
+        }
+        if (currentFlow == null) {
+            System.out.println("ERROR: currentFlow is still null after attempting to create new project");
             return;
         }
         System.out.println("Calling canvas.createNode()");

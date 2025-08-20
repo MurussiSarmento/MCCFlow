@@ -127,6 +127,40 @@
                 </executions>
             </plugin>
             
+            <!-- Launch4j plugin to generate Windows .exe -->
+            <plugin>
+                <groupId>com.akathist.maven.plugins.launch4j</groupId>
+                <artifactId>launch4j-maven-plugin</artifactId>
+                <version>1.7.25</version>
+                <executions>
+                    <execution>
+                        <id>wrap-fat-jar-into-exe</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>launch4j</goal>
+                        </goals>
+                        <configuration>
+                            <outfile>${project.build.directory}/FlowDeconstruct.exe</outfile>
+                            <jar>${project.build.directory}/FlowDeconstruct.jar</jar>
+                            <headerType>gui</headerType>
+                            <errTitle>FlowDeconstruct</errTitle>
+                            <classPath>
+                                <mainClass>${main.class}</mainClass>
+                            </classPath>
+                            <jre>
+                                <minVersion>1.8.0</minVersion>
+                                <!-- To ship a JRE next to the EXE, place it in target/jre and enable the following line: -->
+                                <!-- <bundledJrePath>jre</bundledJrePath> -->
+                                <jdkPreference>preferJre</jdkPreference>
+                            </jre>
+                            <priority>normal</priority>
+                            <stayAlive>false</stayAlive>
+                            <restartOnCrash>false</restartOnCrash>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            
             <!-- Exec plugin for running the application -->
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>

@@ -225,25 +225,29 @@ public class FlowCanvas extends JPanel implements MouseListener, MouseMotionList
         Point2D.Double toPoint = getAnchorPoint(toNode, fromNode);
         
         boolean isSelected = (connection == selectedConnection);
-        // Draw main line
-        g2d.setColor(isSelected ? SUBFLOW_INDICATOR_COLOR : CONNECTION_COLOR);
+        // Draw main line with customizable color
+        Color baseLineColor = parseHexColor(connection.getLineColorHex(), CONNECTION_COLOR);
+        Color lineColor = isSelected ? SUBFLOW_INDICATOR_COLOR : baseLineColor;
+        g2d.setColor(lineColor);
         g2d.setStroke(new BasicStroke(isSelected ? 3f : 2f));
         g2d.drawLine((int) fromPoint.x, (int) fromPoint.y, (int) toPoint.x, (int) toPoint.y);
         
-        // Draw arrowhead(s) according to direction style
+        // Draw arrowhead(s) according to direction style with customizable color
+        Color baseArrowColor = parseHexColor(connection.getArrowColorHex(), baseLineColor);
+        Color arrowColor = isSelected ? SUBFLOW_INDICATOR_COLOR : baseArrowColor;
         FlowConnection.DirectionStyle ds = connection.getDirectionStyle();
         if (ds != null) {
             switch (ds) {
                 case FROM_TO:
-                    g2d.setColor(isSelected ? SUBFLOW_INDICATOR_COLOR : CONNECTION_COLOR);
+                    g2d.setColor(arrowColor);
                     drawArrowHead(g2d, fromPoint.x, fromPoint.y, toPoint.x, toPoint.y);
                     break;
                 case TO_FROM:
-                    g2d.setColor(isSelected ? SUBFLOW_INDICATOR_COLOR : CONNECTION_COLOR);
+                    g2d.setColor(arrowColor);
                     drawArrowHead(g2d, toPoint.x, toPoint.y, fromPoint.x, fromPoint.y);
                     break;
                 case BIDIRECTIONAL:
-                    g2d.setColor(isSelected ? SUBFLOW_INDICATOR_COLOR : CONNECTION_COLOR);
+                    g2d.setColor(arrowColor);
                     drawArrowHead(g2d, fromPoint.x, fromPoint.y, toPoint.x, toPoint.y);
                     drawArrowHead(g2d, toPoint.x, toPoint.y, fromPoint.x, fromPoint.y);
                     break;
@@ -397,7 +401,9 @@ public class FlowCanvas extends JPanel implements MouseListener, MouseMotionList
         requestFocusInWindow();
         if (flowDiagram == null) return;
         
-        // Show context menu if applicable
+        // Show node context menu first if applicable
+        if (maybeShowNodePopup(e)) return;
+        // Show connection context menu if applicable
         if (maybeShowConnectionPopup(e)) return;
         
         Point2D.Double worldPos = screenToWorld(e.getPoint());
@@ -441,7 +447,13 @@ public class FlowCanvas extends JPanel implements MouseListener, MouseMotionList
     // In mouseReleased
     @Override
     public void mouseReleased(MouseEvent e) {
-        // Show context menu if applicable
+        // Show node context menu first if applicable
+        if (maybeShowNodePopup(e)) {
+            dragging = false;
+            draggingNode = null;
+            return;
+        }
+        // Show connection context menu if applicable
         if (maybeShowConnectionPopup(e)) {
             dragging = false;
             draggingNode = null;
@@ -652,13 +664,61 @@ public class FlowCanvas extends JPanel implements MouseListener, MouseMotionList
         boolean isSelected = flowDiagram.getSelectedNode() == node;
         boolean isEditing = (editingNode == node);
         
-        // Node background
-        g2d.setColor(isEditing ? NODE_EDITING_COLOR : (isSelected ? NODE_SELECTED_COLOR : NODE_COLOR));
-        g2d.fillRoundRect(x, y, NODE_WIDTH, NODE_HEIGHT, 12, 12);
+        // Colors
+        Color fill = parseHexColor(node.getFillColorHex(), NODE_COLOR);
+        if (isEditing) {
+            fill = NODE_EDITING_COLOR;
+        }
+        Color border = isSelected ? SUBFLOW_INDICATOR_COLOR : parseHexColor(node.getBorderColorHex(), CONNECTION_COLOR);
         
-        // Border
-        g2d.setColor(isSelected ? SUBFLOW_INDICATOR_COLOR : CONNECTION_COLOR);
-        g2d.drawRoundRect(x, y, NODE_WIDTH, NODE_HEIGHT, 12, 12);
+        // Draw shape based on node shape
+        FlowNode.NodeShape shape = node.getShape();
+        g2d.setColor(fill);
+        switch (shape) {
+            case RECTANGLE:
+                g2d.fillRoundRect(x, y, NODE_WIDTH, NODE_HEIGHT, 12, 12);
+                g2d.setColor(border);
+                g2d.drawRoundRect(x, y, NODE_WIDTH, NODE_HEIGHT, 12, 12);
+                break;
+            case SQUARE: {
+                int side = Math.min(NODE_WIDTH, NODE_HEIGHT);
+                g2d.fillRect(x, y, side, side);
+                g2d.setColor(border);
+                g2d.drawRect(x, y, side, side);
+                break;
+            }
+            case OVAL:
+                g2d.fillOval(x, y, NODE_WIDTH, NODE_HEIGHT);
+                g2d.setColor(border);
+                g2d.drawOval(x, y, NODE_WIDTH, NODE_HEIGHT);
+                break;
+            case CIRCLE: {
+                int diameter = Math.min(NODE_WIDTH, NODE_HEIGHT);
+                int cx = x + (NODE_WIDTH - diameter) / 2;
+                int cy = y + (NODE_HEIGHT - diameter) / 2;
+                g2d.fillOval(cx, cy, diameter, diameter);
+                g2d.setColor(border);
+                g2d.drawOval(cx, cy, diameter, diameter);
+                break;
+            }
+            case DIAMOND: {
+                int cx = x + NODE_WIDTH / 2;
+                int cy = y + NODE_HEIGHT / 2;
+                Polygon p = new Polygon(
+                    new int[]{cx, x + NODE_WIDTH, cx, x},
+                    new int[]{y, cy, y + NODE_HEIGHT, cy},
+                    4
+                );
+                g2d.fillPolygon(p);
+                g2d.setColor(border);
+                g2d.drawPolygon(p);
+                break;
+            }
+            default:
+                g2d.fillRoundRect(x, y, NODE_WIDTH, NODE_HEIGHT, 12, 12);
+                g2d.setColor(border);
+                g2d.drawRoundRect(x, y, NODE_WIDTH, NODE_HEIGHT, 12, 12);
+        }
         
         // Node text
         g2d.setColor(TEXT_COLOR);
@@ -770,6 +830,37 @@ public class FlowCanvas extends JPanel implements MouseListener, MouseMotionList
         });
         popup.add(dirNone);
 
+        popup.addSeparator();
+        JMenuItem lineColorItem = new JMenuItem("Change Line Color...");
+        lineColorItem.addActionListener(ev -> {
+            Color initial = parseHexColor(connection.getLineColorHex(), CONNECTION_COLOR);
+            Color chosen = chooseColor("Select Line Color", initial);
+            if (chosen != null) {
+                connection.setLineColorHex(colorToHex(chosen));
+                if (flowDiagram != null) {
+                    List<FlowConnection> updated = new ArrayList<>(flowDiagram.getConnections());
+                    flowDiagram.setConnections(updated);
+                }
+                repaint();
+            }
+        });
+        popup.add(lineColorItem);
+
+        JMenuItem arrowColorItem = new JMenuItem("Change Arrow Color...");
+        arrowColorItem.addActionListener(ev -> {
+            Color initial = parseHexColor(connection.getArrowColorHex(), CONNECTION_COLOR);
+            Color chosen = chooseColor("Select Arrow Color", initial);
+            if (chosen != null) {
+                connection.setArrowColorHex(colorToHex(chosen));
+                if (flowDiagram != null) {
+                    List<FlowConnection> updated = new ArrayList<>(flowDiagram.getConnections());
+                    flowDiagram.setConnections(updated);
+                }
+                repaint();
+            }
+        });
+        popup.add(arrowColorItem);
+
         popup.show(this, x, y);
     }
 
@@ -852,4 +943,85 @@ public class FlowCanvas extends JPanel implements MouseListener, MouseMotionList
             repaint();
         }
     }
+
+// Node popup for color and shape
+private void showNodePopup(int x, int y, FlowNode node) {
+    JPopupMenu popup = new JPopupMenu();
+
+    JMenuItem fillColorItem = new JMenuItem("Mudar cor do preenchimento...");
+    fillColorItem.addActionListener(ev -> {
+        Color initial = parseHexColor(node.getFillColorHex(), NODE_COLOR);
+        Color chosen = chooseColor("Selecione a cor de preenchimento", initial);
+        if (chosen != null) {
+            node.setFillColorHex(colorToHex(chosen));
+            repaint();
+        }
+    });
+    popup.add(fillColorItem);
+
+    JMenuItem borderColorItem = new JMenuItem("Mudar cor da borda...");
+    borderColorItem.addActionListener(ev -> {
+        Color initial = parseHexColor(node.getBorderColorHex(), CONNECTION_COLOR);
+        Color chosen = chooseColor("Selecione a cor da borda", initial);
+        if (chosen != null) {
+            node.setBorderColorHex(colorToHex(chosen));
+            repaint();
+        }
+    });
+    popup.add(borderColorItem);
+
+    popup.addSeparator();
+    JMenu shapeMenu = new JMenu("Forma");
+    for (FlowNode.NodeShape s : FlowNode.NodeShape.values()) {
+        JMenuItem item = new JMenuItem(s.name());
+        item.addActionListener(ev -> {
+            node.setShape(s);
+            repaint();
+        });
+        shapeMenu.add(item);
+    }
+    popup.add(shapeMenu);
+
+    JMenuItem resetColors = new JMenuItem("Resetar cores");
+    resetColors.addActionListener(ev -> {
+        node.setFillColorHex("#3a3a3a");
+        node.setBorderColorHex("#666666");
+        repaint();
+    });
+    popup.add(resetColors);
+
+    popup.show(this, x, y);
+}
+
+private boolean maybeShowNodePopup(MouseEvent e) {
+    if (e.isPopupTrigger() || SwingUtilities.isRightMouseButton(e)) {
+        Point2D.Double worldPos = screenToWorld(e.getPoint());
+        FlowNode node = findNodeAt(worldPos);
+        if (node != null) {
+            flowDiagram.selectNode(node);
+            showNodePopup(e.getX(), e.getY(), node);
+            return true;
+        }
+    }
+    return false;
+}
+
+// Helpers for color handling
+private Color parseHexColor(String hex, Color fallback) {
+    try {
+        if (hex == null || hex.isEmpty()) return fallback;
+        return Color.decode(hex);
+    } catch (Exception ex) {
+        return fallback;
+    }
+}
+
+private String colorToHex(Color c) {
+    if (c == null) return null;
+    return String.format("#%02x%02x%02x", c.getRed(), c.getGreen(), c.getBlue());
+    }
+
+private Color chooseColor(String title, Color initial) {
+    return JColorChooser.showDialog(this, title, initial);
+}
 }
