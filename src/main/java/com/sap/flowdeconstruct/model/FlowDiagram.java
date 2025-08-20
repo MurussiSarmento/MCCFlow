@@ -34,7 +34,7 @@ public class FlowDiagram {
         this.modifiedAt = new Date();
         this.listeners = new ArrayList<>();
         this.nodeStateListener = (n, property, oldValue, newValue) -> {
-            if ("text".equals(property) || "notes".equals(property) || "position".equals(property)) {
+            if ("text".equals(property) || "notes".equals(property) || "position".equals(property) || "width".equals(property) || "height".equals(property)) {
                 updateModifiedTime();
                 notifyListeners("nodeModified", n, property);
             }

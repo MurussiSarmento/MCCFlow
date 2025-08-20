@@ -31,7 +31,10 @@ public class FlowNode {
     private String fillColorHex; // e.g. "#3a3a3a"
     private String borderColorHex; // e.g. "#666666"
     private NodeShape shape = NodeShape.RECTANGLE;
-    
+    private String textColorHex; // e.g. "#cccccc"
+    private int width;
+    private int height;
+
     // UI state (not persisted)
     @JsonIgnore
     private boolean selected;
@@ -52,6 +55,9 @@ public class FlowNode {
         this.fillColorHex = "#3a3a3a";
         this.borderColorHex = "#666666";
         this.shape = NodeShape.RECTANGLE;
+        this.textColorHex = "#cccccc";
+        this.width = 120;
+        this.height = 40;
     }
     
     public FlowNode(String text) {
@@ -183,6 +189,29 @@ public class FlowNode {
         this.shape = shape != null ? shape : NodeShape.RECTANGLE;
         notifyListeners("shape", old, this.shape);
     }
+
+    // Size accessors
+    public int getWidth() {
+        return width;
+    }
+
+    public void setWidth(int width) {
+        int old = this.width;
+        int newVal = Math.max(20, width);
+        this.width = newVal;
+        notifyListeners("width", old, newVal);
+    }
+
+    public int getHeight() {
+        return height;
+    }
+
+    public void setHeight(int height) {
+        int old = this.height;
+        int newVal = Math.max(20, height);
+        this.height = newVal;
+        notifyListeners("height", old, newVal);
+    }
     
     // Listener management
     public void addStateListener(NodeStateListener listener) {
@@ -248,5 +277,15 @@ public class FlowNode {
      */
     public interface NodeStateListener {
         void onNodeStateChanged(FlowNode node, String property, Object oldValue, Object newValue);
+    }
+
+    public String getTextColorHex() {
+        return textColorHex;
+    }
+
+    public void setTextColorHex(String textColorHex) {
+        String old = this.textColorHex;
+        this.textColorHex = textColorHex;
+        notifyListeners("textColorHex", old, textColorHex);
     }
 }

@@ -290,8 +290,8 @@ public class FlowCanvas extends JPanel implements MouseListener, MouseMotionList
         double otherX = other.getX();
         
         // If the other node is to the right, use the right edge, otherwise use the left edge
-        double anchorX = otherX > x ? x + NODE_WIDTH : x;
-        double anchorY = y + NODE_HEIGHT / 2.0;
+        double anchorX = otherX > x ? x + node.getWidth() : x;
+        double anchorY = y + node.getHeight() / 2.0;
         
         return new Point2D.Double(anchorX, anchorY);
     }
@@ -424,8 +424,8 @@ public class FlowCanvas extends JPanel implements MouseListener, MouseMotionList
         
         if (dragging && draggingNode != null) {
             Point2D.Double worldPos = screenToWorld(e.getPoint());
-            int newX = (int) (worldPos.x - NODE_WIDTH / 2);
-            int newY = (int) (worldPos.y - NODE_HEIGHT / 2);
+            int newX = (int) (worldPos.x - draggingNode.getWidth() / 2.0);
+            int newY = (int) (worldPos.y - draggingNode.getHeight() / 2.0);
             
             // Prevent overlapping too tightly
             if (!wouldOverlap(draggingNode, newX, newY)) {
@@ -468,9 +468,13 @@ public class FlowCanvas extends JPanel implements MouseListener, MouseMotionList
         for (FlowNode node : flowDiagram.getNodes()) {
             if (node == movingNode) continue;
             int minDistance = 10; // Minimum distance between nodes
-            boolean overlapX = Math.abs(newX - node.getX()) < NODE_WIDTH + minDistance;
-            boolean overlapY = Math.abs(newY - node.getY()) < NODE_HEIGHT + minDistance;
-            if (overlapX && overlapY) return true;
+            int mw = movingNode.getWidth();
+            int mh = movingNode.getHeight();
+            int ow = node.getWidth();
+            int oh = node.getHeight();
+            Rectangle rMoving = new Rectangle(newX - minDistance / 2, newY - minDistance / 2, mw + minDistance, mh + minDistance);
+            Rectangle rOther = new Rectangle((int) node.getX() - minDistance / 2, (int) node.getY() - minDistance / 2, ow + minDistance, oh + minDistance);
+            if (rMoving.intersects(rOther)) return true;
         }
         return false;
     }
@@ -504,8 +508,8 @@ public class FlowCanvas extends JPanel implements MouseListener, MouseMotionList
             double x = node.getX();
             double y = node.getY();
             
-            if (worldPos.x >= x && worldPos.x <= x + NODE_WIDTH &&
-                worldPos.y >= y && worldPos.y <= y + NODE_HEIGHT) {
+            if (worldPos.x >= x && worldPos.x <= x + node.getWidth() &&
+                worldPos.y >= y && worldPos.y <= y + node.getHeight()) {
                 return node;
             }
         }
@@ -660,6 +664,8 @@ public class FlowCanvas extends JPanel implements MouseListener, MouseMotionList
     private void drawNode(Graphics2D g2d, FlowNode node) {
         int x = (int) node.getX();
         int y = (int) node.getY();
+        int w = node.getWidth();
+        int h = node.getHeight();
         
         boolean isSelected = flowDiagram.getSelectedNode() == node;
         boolean isEditing = (editingNode == node);
@@ -676,37 +682,37 @@ public class FlowCanvas extends JPanel implements MouseListener, MouseMotionList
         g2d.setColor(fill);
         switch (shape) {
             case RECTANGLE:
-                g2d.fillRoundRect(x, y, NODE_WIDTH, NODE_HEIGHT, 12, 12);
+                g2d.fillRoundRect(x, y, w, h, 12, 12);
                 g2d.setColor(border);
-                g2d.drawRoundRect(x, y, NODE_WIDTH, NODE_HEIGHT, 12, 12);
+                g2d.drawRoundRect(x, y, w, h, 12, 12);
                 break;
             case SQUARE: {
-                int side = Math.min(NODE_WIDTH, NODE_HEIGHT);
+                int side = Math.min(w, h);
                 g2d.fillRect(x, y, side, side);
                 g2d.setColor(border);
                 g2d.drawRect(x, y, side, side);
                 break;
             }
             case OVAL:
-                g2d.fillOval(x, y, NODE_WIDTH, NODE_HEIGHT);
+                g2d.fillOval(x, y, w, h);
                 g2d.setColor(border);
-                g2d.drawOval(x, y, NODE_WIDTH, NODE_HEIGHT);
+                g2d.drawOval(x, y, w, h);
                 break;
             case CIRCLE: {
-                int diameter = Math.min(NODE_WIDTH, NODE_HEIGHT);
-                int cx = x + (NODE_WIDTH - diameter) / 2;
-                int cy = y + (NODE_HEIGHT - diameter) / 2;
+                int diameter = Math.min(w, h);
+                int cx = x + (w - diameter) / 2;
+                int cy = y + (h - diameter) / 2;
                 g2d.fillOval(cx, cy, diameter, diameter);
                 g2d.setColor(border);
                 g2d.drawOval(cx, cy, diameter, diameter);
                 break;
             }
             case DIAMOND: {
-                int cx = x + NODE_WIDTH / 2;
-                int cy = y + NODE_HEIGHT / 2;
+                int cx = x + w / 2;
+                int cy = y + h / 2;
                 Polygon p = new Polygon(
-                    new int[]{cx, x + NODE_WIDTH, cx, x},
-                    new int[]{y, cy, y + NODE_HEIGHT, cy},
+                    new int[]{cx, x + w, cx, x},
+                    new int[]{y, cy, y + h, cy},
                     4
                 );
                 g2d.fillPolygon(p);
@@ -715,13 +721,14 @@ public class FlowCanvas extends JPanel implements MouseListener, MouseMotionList
                 break;
             }
             default:
-                g2d.fillRoundRect(x, y, NODE_WIDTH, NODE_HEIGHT, 12, 12);
+                g2d.fillRoundRect(x, y, w, h, 12, 12);
                 g2d.setColor(border);
-                g2d.drawRoundRect(x, y, NODE_WIDTH, NODE_HEIGHT, 12, 12);
+                g2d.drawRoundRect(x, y, w, h, 12, 12);
         }
         
         // Node text
-        g2d.setColor(TEXT_COLOR);
+        Color textColor = parseHexColor(node.getTextColorHex(), TEXT_COLOR);
+        g2d.setColor(textColor);
         g2d.setFont(MONO_FONT);
         
         String text = isEditing ? editingText : node.getText();
@@ -730,25 +737,25 @@ public class FlowCanvas extends JPanel implements MouseListener, MouseMotionList
         // Determine bounds for centering text based on shape actually drawn
         int boundsX = x;
         int boundsY = y;
-        int boundsW = NODE_WIDTH;
-        int boundsH = NODE_HEIGHT;
+        int boundsW = w;
+        int boundsH = h;
         switch (shape) {
             case SQUARE: {
-                int side = Math.min(NODE_WIDTH, NODE_HEIGHT);
+                int side = Math.min(w, h);
                 boundsW = side;
                 boundsH = side;
                 break;
             }
             case CIRCLE: {
-                int diameter = Math.min(NODE_WIDTH, NODE_HEIGHT);
+                int diameter = Math.min(w, h);
                 boundsW = diameter;
                 boundsH = diameter;
-                boundsX = x + (NODE_WIDTH - diameter) / 2;
-                boundsY = y + (NODE_HEIGHT - diameter) / 2;
+                boundsX = x + (w - diameter) / 2;
+                boundsY = y + (h - diameter) / 2;
                 break;
             }
             default:
-                // RECTANGLE, OVAL, DIAMOND already use NODE_WIDTH x NODE_HEIGHT
+                // RECTANGLE, OVAL, DIAMOND already use w x h
                 break;
         }
         
@@ -759,8 +766,8 @@ public class FlowCanvas extends JPanel implements MouseListener, MouseMotionList
         // Subflow indicator
         if (node.hasSubFlow()) {
             int indicatorSize = 8;
-            int indicatorX = x + NODE_WIDTH - indicatorSize - 6;
-            int indicatorY = y + NODE_HEIGHT - indicatorSize - 6;
+            int indicatorX = x + w - indicatorSize - 6;
+            int indicatorY = y + h - indicatorSize - 6;
             g2d.setColor(SUBFLOW_INDICATOR_COLOR);
             g2d.fillOval(indicatorX, indicatorY, indicatorSize, indicatorSize);
         }
@@ -916,8 +923,8 @@ public class FlowCanvas extends JPanel implements MouseListener, MouseMotionList
             return;
         }
     
-        double cx = current.getX() + NODE_WIDTH / 2.0;
-        double cy = current.getY() + NODE_HEIGHT / 2.0;
+        double cx = current.getX() + current.getWidth() / 2.0;
+        double cy = current.getY() + current.getHeight() / 2.0;
     
         FlowNode best = null;
         double bestDist = Double.MAX_VALUE;
@@ -926,8 +933,8 @@ public class FlowCanvas extends JPanel implements MouseListener, MouseMotionList
     
         for (FlowNode n : nodes) {
             if (n == current) continue;
-            double nx = n.getX() + NODE_WIDTH / 2.0;
-            double ny = n.getY() + NODE_HEIGHT / 2.0;
+            double nx = n.getX() + n.getWidth() / 2.0;
+            double ny = n.getY() + n.getHeight() / 2.0;
             double dx = nx - cx;
             double dy = ny - cy;
             double dist = Math.hypot(dx, dy);
@@ -996,6 +1003,17 @@ private void showNodePopup(int x, int y, FlowNode node) {
     });
     popup.add(borderColorItem);
 
+    JMenuItem textColorItem = new JMenuItem("Mudar cor do texto...");
+    textColorItem.addActionListener(ev -> {
+        Color initial = parseHexColor(node.getTextColorHex(), TEXT_COLOR);
+        Color chosen = chooseColor("Selecione a cor do texto", initial);
+        if (chosen != null) {
+            node.setTextColorHex(colorToHex(chosen));
+            repaint();
+        }
+    });
+    popup.add(textColorItem);
+
     popup.addSeparator();
     JMenu shapeMenu = new JMenu("Forma");
     for (FlowNode.NodeShape s : FlowNode.NodeShape.values()) {
@@ -1008,10 +1026,52 @@ private void showNodePopup(int x, int y, FlowNode node) {
     }
     popup.add(shapeMenu);
 
+    // Resize submenu
+    JMenu sizeMenu = new JMenu("Tamanho");
+
+    JMenuItem incW = new JMenuItem("Aumentar largura (+10)");
+    incW.addActionListener(ev -> { node.setWidth(node.getWidth() + 10); repaint(); });
+    sizeMenu.add(incW);
+
+    JMenuItem decW = new JMenuItem("Diminuir largura (-10)");
+    decW.addActionListener(ev -> { node.setWidth(node.getWidth() - 10); repaint(); });
+    sizeMenu.add(decW);
+
+    JMenuItem incH = new JMenuItem("Aumentar altura (+10)");
+    incH.addActionListener(ev -> { node.setHeight(node.getHeight() + 10); repaint(); });
+    sizeMenu.add(incH);
+
+    JMenuItem decH = new JMenuItem("Diminuir altura (-10)");
+    decH.addActionListener(ev -> { node.setHeight(node.getHeight() - 10); repaint(); });
+    sizeMenu.add(decH);
+
+    sizeMenu.addSeparator();
+
+    JMenuItem setSize = new JMenuItem("Definir tamanho...");
+    setSize.addActionListener(ev -> {
+        String wStr = JOptionPane.showInputDialog(this, "Largura (px):", node.getWidth());
+        if (wStr == null) return;
+        String hStr = JOptionPane.showInputDialog(this, "Altura (px):", node.getHeight());
+        if (hStr == null) return;
+        try {
+            int wv = Integer.parseInt(wStr.trim());
+            int hv = Integer.parseInt(hStr.trim());
+            node.setWidth(wv);
+            node.setHeight(hv);
+            repaint();
+        } catch (NumberFormatException ex) {
+            JOptionPane.showMessageDialog(this, "Valores inválidos. Use números inteiros.", "Erro", JOptionPane.ERROR_MESSAGE);
+        }
+    });
+    sizeMenu.add(setSize);
+
+    popup.add(sizeMenu);
+
     JMenuItem resetColors = new JMenuItem("Resetar cores");
     resetColors.addActionListener(ev -> {
         node.setFillColorHex("#3a3a3a");
         node.setBorderColorHex("#666666");
+        node.setTextColorHex("#cccccc");
         repaint();
     });
     popup.add(resetColors);
