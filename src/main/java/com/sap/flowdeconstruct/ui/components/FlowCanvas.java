@@ -726,8 +726,34 @@ public class FlowCanvas extends JPanel implements MouseListener, MouseMotionList
         
         String text = isEditing ? editingText : node.getText();
         FontMetrics fm = g2d.getFontMetrics();
-        int textX = x + 10;
-        int textY = y + (NODE_HEIGHT + fm.getAscent() - fm.getDescent()) / 2;
+        
+        // Determine bounds for centering text based on shape actually drawn
+        int boundsX = x;
+        int boundsY = y;
+        int boundsW = NODE_WIDTH;
+        int boundsH = NODE_HEIGHT;
+        switch (shape) {
+            case SQUARE: {
+                int side = Math.min(NODE_WIDTH, NODE_HEIGHT);
+                boundsW = side;
+                boundsH = side;
+                break;
+            }
+            case CIRCLE: {
+                int diameter = Math.min(NODE_WIDTH, NODE_HEIGHT);
+                boundsW = diameter;
+                boundsH = diameter;
+                boundsX = x + (NODE_WIDTH - diameter) / 2;
+                boundsY = y + (NODE_HEIGHT - diameter) / 2;
+                break;
+            }
+            default:
+                // RECTANGLE, OVAL, DIAMOND already use NODE_WIDTH x NODE_HEIGHT
+                break;
+        }
+        
+        int textX = boundsX + (boundsW - fm.stringWidth(text)) / 2;
+        int textY = boundsY + (boundsH + fm.getAscent() - fm.getDescent()) / 2;
         g2d.drawString(text, textX, textY);
         
         // Subflow indicator
