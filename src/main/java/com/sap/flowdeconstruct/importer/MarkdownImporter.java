@@ -63,6 +63,36 @@ public class MarkdownImporter {
                     } catch (Exception ignore) {
                         // If parsing fails, keep default position (0,0)
                     }
+                } else if ((trimmed.startsWith("Size:")) && currentNode != null) {
+                    // Parse size line: Size: w, h
+                    try {
+                        String dims = trimmed.substring("Size:".length()).trim();
+                        String[] parts = dims.split(",");
+                        if (parts.length >= 2) {
+                            int w = Integer.parseInt(parts[0].trim());
+                            int h = Integer.parseInt(parts[1].trim());
+                            currentNode.setWidth(w);
+                            currentNode.setHeight(h);
+                        }
+                    } catch (Exception ignore) {
+                        // keep defaults
+                    }
+                } else if ((trimmed.startsWith("Shape:")) && currentNode != null) {
+                    try {
+                        String shapeStr = trimmed.substring("Shape:".length()).trim();
+                        currentNode.setShape(FlowNode.NodeShape.valueOf(shapeStr));
+                    } catch (Exception ignore) {
+                        // keep default RECTANGLE
+                    }
+                } else if ((trimmed.startsWith("FillColor:")) && currentNode != null) {
+                    String color = trimmed.substring("FillColor:".length()).trim();
+                    currentNode.setFillColorHex(color);
+                } else if ((trimmed.startsWith("BorderColor:")) && currentNode != null) {
+                    String color = trimmed.substring("BorderColor:".length()).trim();
+                    currentNode.setBorderColorHex(color);
+                } else if ((trimmed.startsWith("TextColor:")) && currentNode != null) {
+                    String color = trimmed.substring("TextColor:".length()).trim();
+                    currentNode.setTextColorHex(color);
                 } else if ((trimmed.startsWith("*Notes:") || trimmed.startsWith("Notes:")) && currentNode != null) {
                     // Parse note line
                     String noteText = trimmed;
@@ -74,7 +104,9 @@ public class MarkdownImporter {
                     } else if (noteText.startsWith("Notes:")) {
                         noteText = noteText.substring(6).trim();
                     }
-                    currentNode.setNotes(noteText.trim());
+                    // Unescape markdown to match exporter
+                    String unescaped = noteText.replace("<br>", "\n").replace("\\*", "*").replace("\\_", "_");
+                    currentNode.setNotes(unescaped.trim());
                 }
             } else {
                 // Parse connection
@@ -85,22 +117,25 @@ public class MarkdownImporter {
                         String type = "NORMAL";
                         String direction = null;
                         String protocol = null;
+                        String lineColor = null;
+                        String arrowColor = null;
 
                         // Tokenize by spaces but keep simple parsing for labeled fields
                         String[] parts = trimmed.split(" ");
                         for (int i = 0; i < parts.length; i++) {
                             String p = parts[i];
                             if ("From:".equals(p) && i + 1 < parts.length) {
-                                from = parts[i + 1];
-                                i++;
+                                from = parts[++i];
                             } else if ("To:".equals(p) && i + 1 < parts.length) {
-                                to = parts[i + 1];
-                                i++;
+                                to = parts[++i];
                             } else if (p.startsWith("(") && p.endsWith(")")) {
                                 type = p.substring(1, p.length() - 1);
                             } else if ("Direction:".equals(p) && i + 1 < parts.length) {
-                                direction = parts[i + 1];
-                                i++;
+                                direction = parts[++i];
+                            } else if ("LineColor:".equals(p) && i + 1 < parts.length) {
+                                lineColor = parts[++i];
+                            } else if ("ArrowColor:".equals(p) && i + 1 < parts.length) {
+                                arrowColor = parts[++i];
                             } else if ("Protocol:".equals(p) && i + 1 < parts.length) {
                                 // Protocol may contain spaces; capture the rest of the line after this token
                                 StringBuilder protoSb = new StringBuilder();
@@ -130,6 +165,12 @@ public class MarkdownImporter {
                                         } catch (IllegalArgumentException e) {
                                             // default already set in model
                                         }
+                                    }
+                                    if (lineColor != null) {
+                                        conn.setLineColorHex(lineColor);
+                                    }
+                                    if (arrowColor != null) {
+                                        conn.setArrowColorHex(arrowColor);
                                     }
                                     // Protocol
                                     if (protocol != null) {
