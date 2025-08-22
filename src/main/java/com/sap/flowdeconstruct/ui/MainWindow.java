@@ -6,6 +6,7 @@ import com.sap.flowdeconstruct.model.FlowNode;
 import com.sap.flowdeconstruct.ui.components.FlowCanvas;
 import com.sap.flowdeconstruct.ui.dialogs.ExportDialog;
 import com.sap.flowdeconstruct.ui.dialogs.NoteDialog;
+import com.sap.flowdeconstruct.ui.dialogs.TranscriptionPromptDialog;
 
 import javax.swing.*;
 import java.awt.*;
@@ -198,6 +199,10 @@ public class MainWindow extends JFrame implements KeyListener {
         JButton exportBtn = createToolbarButton("Export", "Export flow (Ctrl+E)", e -> exportFlow());
         toolbar.add(exportBtn);
         
+        // Prompt from Transcription button
+        JButton promptBtn = createToolbarButton("Prompt", "Generate Markdown prompt from transcription (Ctrl+G)", e -> openTranscriptionPromptDialog());
+        toolbar.add(promptBtn);
+        
         // Back button
         JButton backBtn = createToolbarButton("< Back", "Go back (Esc)", e -> handleEscape());
         toolbar.add(backBtn);
@@ -280,6 +285,7 @@ public class MainWindow extends JFrame implements KeyListener {
             "Ctrl+Enter - Drill down to subflow",
             "Ctrl+N     - Add note to selected node",
             "Ctrl+E     - Export flow",
+            "Ctrl+G     - Generate prompt from transcription",
             "Arrow Keys - Navigate nodes",
             "Esc        - Go back / Cancel",
             "?          - Show this help"
@@ -396,6 +402,12 @@ public class MainWindow extends JFrame implements KeyListener {
                     exportFlow();
                 } else if (currentFlow != null && currentFlow.getSelectedNode() != null && !canvas.isEditingNode()) {
                     canvas.startEditingSelectedNode();
+                }
+                break;
+                
+            case KeyEvent.VK_G:
+                if (ctrl) {
+                    openTranscriptionPromptDialog();
                 }
                 break;
                 
@@ -583,6 +595,14 @@ public class MainWindow extends JFrame implements KeyListener {
                 } else if (currentFlow != null && currentFlow.getSelectedNode() != null && !canvas.isEditingNode()) {
                     System.out.println("MainWindow.keyPressed: E - starting to edit node");
                     startEditingSelectedNode();
+                }
+                break;
+                
+            case KeyEvent.VK_G:
+                System.out.println("MainWindow.keyPressed: G key detected");
+                if (ctrl) {
+                    System.out.println("MainWindow.keyPressed: Ctrl+G - open transcription prompt dialog");
+                    openTranscriptionPromptDialog();
                 }
                 break;
                 
@@ -923,5 +943,14 @@ public class MainWindow extends JFrame implements KeyListener {
                 canvas.requestFocusInWindow();
             });
         }
+    }
+    
+    private void openTranscriptionPromptDialog() {
+        // Auto-save any current editing before opening dialog
+        if (canvas != null && canvas.isEditingNode()) {
+            canvas.finishEditingNode();
+        }
+        TranscriptionPromptDialog dialog = new TranscriptionPromptDialog(this);
+        dialog.setVisible(true);
     }
 }
