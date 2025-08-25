@@ -26,22 +26,25 @@ public class MarkdownImporter {
         boolean inConnectionsSection = false;
         FlowNode currentNode = null;
 
-        for (String line : lines) {
-            String trimmed = line.trim();
+        for (String rawLine : lines) {
+            String trimmed = rawLine.trim();
             if (trimmed.isEmpty()) continue;
 
-            if (trimmed.startsWith("# ")) {
-                currentFlow.setName(trimmed.substring(2).trim());
+            // Remove possíveis marcadores de lista antes de analisar ("- ", "* ", "1. ", etc.)
+            String normalized = stripListMarker(trimmed);
+
+            if (normalized.startsWith("# ")) {
+                currentFlow.setName(normalized.substring(2).trim());
                 inConnectionsSection = false;
-            } else if (trimmed.startsWith("## Connections")) {
+            } else if (isConnectionsHeading(normalized)) {
                 inConnectionsSection = true;
             } else if (!inConnectionsSection) {
                 // Parse node
-                if (trimmed.startsWith("[")) {
-                    int idEnd = trimmed.indexOf("]");
+                if (normalized.startsWith("[")) {
+                    int idEnd = normalized.indexOf("]");
                     if (idEnd != -1) {
-                        String id = trimmed.substring(1, idEnd).trim();
-                        String text = trimmed.substring(idEnd + 1).trim();
+                        String id = normalized.substring(1, idEnd).trim();
+                        String text = normalized.substring(idEnd + 1).trim();
                         // Accept any valid ID format, not just UUID
                         if (id.length() > 0 && !id.contains("[") && !id.contains("]")) {
                             FlowNode flowNode = new FlowNode(text);
@@ -50,10 +53,10 @@ public class MarkdownImporter {
                             currentNode = flowNode;
                         }
                     }
-                } else if ((trimmed.startsWith("Position:")) && currentNode != null) {
+                } else if ((normalized.startsWith("Position:")) && currentNode != null) {
                     // Parse position line: Position: x, y
                     try {
-                        String coords = trimmed.substring("Position:".length()).trim();
+                        String coords = normalized.substring("Position:".length()).trim();
                         String[] parts = coords.split(",");
                         if (parts.length >= 2) {
                             int x = Integer.parseInt(parts[0].trim());
@@ -63,10 +66,10 @@ public class MarkdownImporter {
                     } catch (Exception ignore) {
                         // If parsing fails, keep default position (0,0)
                     }
-                } else if ((trimmed.startsWith("Size:")) && currentNode != null) {
+                } else if ((normalized.startsWith("Size:")) && currentNode != null) {
                     // Parse size line: Size: w, h
                     try {
-                        String dims = trimmed.substring("Size:".length()).trim();
+                        String dims = normalized.substring("Size:".length()).trim();
                         String[] parts = dims.split(",");
                         if (parts.length >= 2) {
                             int w = Integer.parseInt(parts[0].trim());
@@ -77,25 +80,29 @@ public class MarkdownImporter {
                     } catch (Exception ignore) {
                         // keep defaults
                     }
-                } else if ((trimmed.startsWith("Shape:")) && currentNode != null) {
+                } else if ((normalized.startsWith("Shape:")) && currentNode != null) {
                     try {
-                        String shapeStr = trimmed.substring("Shape:".length()).trim();
+                        String shapeStr = normalized.substring("Shape:".length()).trim();
+                        // aceitar sinônimo comum
+                        if ("ELLIPSE".equalsIgnoreCase(shapeStr)) {
+                            shapeStr = "OVAL";
+                        }
                         currentNode.setShape(FlowNode.NodeShape.valueOf(shapeStr));
                     } catch (Exception ignore) {
                         // keep default RECTANGLE
                     }
-                } else if ((trimmed.startsWith("FillColor:")) && currentNode != null) {
-                    String color = trimmed.substring("FillColor:".length()).trim();
+                } else if ((normalized.startsWith("FillColor:")) && currentNode != null) {
+                    String color = normalized.substring("FillColor:".length()).trim();
                     currentNode.setFillColorHex(color);
-                } else if ((trimmed.startsWith("BorderColor:")) && currentNode != null) {
-                    String color = trimmed.substring("BorderColor:".length()).trim();
+                } else if ((normalized.startsWith("BorderColor:")) && currentNode != null) {
+                    String color = normalized.substring("BorderColor:".length()).trim();
                     currentNode.setBorderColorHex(color);
-                } else if ((trimmed.startsWith("TextColor:")) && currentNode != null) {
-                    String color = trimmed.substring("TextColor:".length()).trim();
+                } else if ((normalized.startsWith("TextColor:")) && currentNode != null) {
+                    String color = normalized.substring("TextColor:".length()).trim();
                     currentNode.setTextColorHex(color);
-                } else if ((trimmed.startsWith("*Notes:") || trimmed.startsWith("Notes:")) && currentNode != null) {
+                } else if ((normalized.startsWith("*Notes:") || normalized.startsWith("Notes:")) && currentNode != null) {
                     // Parse note line
-                    String noteText = trimmed;
+                    String noteText = normalized;
                     if (noteText.startsWith("*Notes:")) {
                         noteText = noteText.substring(7).trim();
                         if (noteText.endsWith("*")) {
@@ -110,7 +117,8 @@ public class MarkdownImporter {
                 }
             } else {
                 // Parse connection
-                if (trimmed.contains("From:") && trimmed.contains("To:")) {
+                String connLine = normalized;
+                if (connLine.contains("From:") && connLine.contains("To:")) {
                     try {
                         String from = null;
                         String to = null;
@@ -121,7 +129,7 @@ public class MarkdownImporter {
                         String arrowColor = null;
 
                         // Tokenize by spaces but keep simple parsing for labeled fields
-                        String[] parts = trimmed.split(" ");
+                        String[] parts = connLine.split(" ");
                         for (int i = 0; i < parts.length; i++) {
                             String p = parts[i];
                             if ("From:".equals(p) && i + 1 < parts.length) {
@@ -158,10 +166,16 @@ public class MarkdownImporter {
                                     } catch (IllegalArgumentException e) {
                                         conn.setType(FlowConnection.ConnectionType.NORMAL);
                                     }
-                                    // Direction style
+                                    // Direction style (tolerar sinônimos comuns)
                                     if (direction != null) {
                                         try {
-                                            conn.setDirectionStyle(FlowConnection.DirectionStyle.valueOf(direction.toUpperCase()));
+                                            String dirUp = direction.toUpperCase();
+                                            if ("FORWARD".equals(dirUp)) {
+                                                dirUp = "FROM_TO";
+                                            } else if ("BACKWARD".equals(dirUp) || "REVERSE".equals(dirUp)) {
+                                                dirUp = "TO_FROM";
+                                            }
+                                            conn.setDirectionStyle(FlowConnection.DirectionStyle.valueOf(dirUp));
                                         } catch (IllegalArgumentException e) {
                                             // default already set in model
                                         }
@@ -182,7 +196,7 @@ public class MarkdownImporter {
                             }
                         }
                     } catch (Exception e) {
-                        System.err.println("Error parsing connection: " + trimmed);
+                        System.err.println("Error parsing connection: " + connLine);
                     }
                 }
             }
@@ -216,6 +230,30 @@ public class MarkdownImporter {
                     }
                     item = item.getNext();
                 }
+            } else if (node instanceof OrderedList) {
+                Node item = node.getFirstChild();
+                while (item != null) {
+                    String itemText = getTextContent(item);
+                    for (String l : itemText.split("\n")) {
+                        String s = l.trim();
+                        if (!s.isEmpty()) lines.add(s);
+                    }
+                    item = item.getNext();
+                }
+            } else if (node instanceof FencedCodeBlock) {
+                FencedCodeBlock cb = (FencedCodeBlock) node;
+                String literal = cb.getLiteral();
+                for (String l : literal.split("\n")) {
+                    String s = l.trim();
+                    if (!s.isEmpty()) lines.add(s);
+                }
+            } else if (node instanceof IndentedCodeBlock) {
+                IndentedCodeBlock cb = (IndentedCodeBlock) node;
+                String literal = cb.getLiteral();
+                for (String l : literal.split("\n")) {
+                    String s = l.trim();
+                    if (!s.isEmpty()) lines.add(s);
+                }
             }
             node = node.getNext();
         }
@@ -225,5 +263,26 @@ public class MarkdownImporter {
     private String getTextContent(Node node) {
         TextContentRenderer renderer = TextContentRenderer.builder().build();
         return renderer.render(node).trim();
+    }
+
+    private String stripListMarker(String s) {
+        // Remove marcadores comuns de lista/enumeração no início da linha
+        return s.replaceFirst("^(?:[-*]\\s+|\\d+\\.\\s+)", "");
+    }
+
+    private boolean isConnectionsHeading(String line) {
+        String l = line.trim();
+        // Aceitar qualquer nível de heading começando com '#'
+        if (!l.startsWith("#")) return false;
+        // Remover todos os '#', espaços iniciais e dois-pontos opcionais ao final
+        l = l.replaceFirst("^#+\\s*", "").trim();
+        if (l.endsWith(":")) {
+            l = l.substring(0, l.length() - 1).trim();
+        }
+        // Aceitar EN e PT, com ou sem acentuação
+        if (l.equalsIgnoreCase("connections")) return true;
+        if (l.equalsIgnoreCase("conexoes")) return true;
+        if (l.equalsIgnoreCase("conexões")) return true;
+        return false;
     }
 }

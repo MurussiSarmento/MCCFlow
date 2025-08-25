@@ -898,11 +898,15 @@ public class FlowCanvas extends JPanel implements MouseListener, MouseMotionList
     }
 
     private boolean maybeShowConnectionPopup(MouseEvent e) {
-        if (e.isPopupTrigger() || SwingUtilities.isRightMouseButton(e)) {
+        if (e.isPopupTrigger()) {
             Point2D.Double worldPos = screenToWorld(e.getPoint());
             FlowConnection conn = findConnectionAt(worldPos);
             if (conn != null) {
                 selectedConnection = conn;
+                if (flowDiagram != null) {
+                    // Clear any node selection when selecting a connection via popup
+                    flowDiagram.selectNode(null);
+                }
                 showConnectionPopup(e.getX(), e.getY(), conn);
                 return true;
             }
@@ -1080,7 +1084,7 @@ private void showNodePopup(int x, int y, FlowNode node) {
 }
 
 private boolean maybeShowNodePopup(MouseEvent e) {
-    if (e.isPopupTrigger() || SwingUtilities.isRightMouseButton(e)) {
+    if (e.isPopupTrigger()) {
         Point2D.Double worldPos = screenToWorld(e.getPoint());
         FlowNode node = findNodeAt(worldPos);
         if (node != null) {
