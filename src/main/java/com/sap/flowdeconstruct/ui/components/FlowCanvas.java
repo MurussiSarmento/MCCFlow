@@ -47,6 +47,9 @@ public class FlowCanvas extends JPanel implements MouseListener, MouseMotionList
     private boolean dragging = false;
     private FlowNode draggingNode = null;
     private FlowConnection selectedConnection = null;
+    // Novo: estado para criação de conexão manual
+    private FlowNode connectStartNode = null;
+    private Point2D.Double connectMouseWorld = null;
     
     public FlowCanvas() {
         setBackground(BACKGROUND_COLOR);
@@ -214,9 +217,36 @@ public class FlowCanvas extends JPanel implements MouseListener, MouseMotionList
         for (FlowConnection connection : flowDiagram.getConnections()) {
             FlowNode fromNode = flowDiagram.findNodeById(connection.getFromNodeId());
             FlowNode toNode = flowDiagram.findNodeById(connection.getToNodeId());
-            if (fromNode != null && toNode != null) {
-                drawConnection(g2d, fromNode, toNode, connection);
+            if (fromNode == null || toNode == null) continue;
+            
+            drawConnection(g2d, fromNode, toNode, connection);
+        }
+        
+        // Pré-visualização de conexão (modo conectar)
+        if (connectStartNode != null && connectMouseWorld != null) {
+            // Determina um ponto de ancoragem na borda do nó de origem em direção ao mouse
+            int x = (int) connectStartNode.getX();
+            int y = (int) connectStartNode.getY();
+            int w = connectStartNode.getWidth();
+            int h = connectStartNode.getHeight();
+            double cx = x + w / 2.0;
+            double cy = y + h / 2.0;
+            double dx = connectMouseWorld.x - cx;
+            double dy = connectMouseWorld.y - cy;
+            Point2D.Double fromPt;
+            if (Math.abs(dx) > Math.abs(dy)) {
+                fromPt = new Point2D.Double(dx >= 0 ? x + w : x, cy);
+            } else {
+                fromPt = new Point2D.Double(cx, dy >= 0 ? y + h : y);
             }
+            // Desenha linha tracejada com seta
+            Stroke oldStroke = g2d.getStroke();
+            g2d.setColor(SUBFLOW_INDICATOR_COLOR);
+            g2d.setStroke(new BasicStroke(1.5f, BasicStroke.CAP_BUTT, BasicStroke.JOIN_BEVEL, 0f, new float[]{6f, 6f}, 0f));
+            g2d.drawLine((int) fromPt.x, (int) fromPt.y, (int) connectMouseWorld.x, (int) connectMouseWorld.y);
+            // seta
+            drawArrowHead(g2d, fromPt.x, fromPt.y, connectMouseWorld.x, connectMouseWorld.y);
+            g2d.setStroke(oldStroke);
         }
     }
     
@@ -357,6 +387,20 @@ public class FlowCanvas extends JPanel implements MouseListener, MouseMotionList
         requestFocusInWindow();
         if (flowDiagram == null) return;
         
+        // Se estamos no modo de conexão, um clique define o nó alvo ou cancela
+        if (connectStartNode != null) {
+            Point2D.Double worldPos = screenToWorld(e.getPoint());
+            FlowNode target = findNodeAt(worldPos);
+            if (target != null && target != connectStartNode) {
+                flowDiagram.addConnection(connectStartNode, target);
+            }
+            // Finaliza o modo de conexão (seja conectando ou cancelando)
+            connectStartNode = null;
+            connectMouseWorld = null;
+            repaint();
+            return;
+        }
+        
         Point2D.Double worldPos = screenToWorld(e.getPoint());
         FlowNode clickedNode = findNodeAt(worldPos);
         FlowConnection clickedConnection = null;
@@ -437,6 +481,12 @@ public class FlowCanvas extends JPanel implements MouseListener, MouseMotionList
             int dy = e.getY() - lastMousePos.y;
             viewOffset.x += dx;
             viewOffset.y += dy;
+            repaint();
+        }
+        
+        // Atualiza posição do mouse em coordenadas do mundo para a pré-visualização de conexão
+        if (connectStartNode != null) {
+            connectMouseWorld = screenToWorld(e.getPoint());
             repaint();
         }
         
@@ -546,6 +596,11 @@ public class FlowCanvas extends JPanel implements MouseListener, MouseMotionList
             editingNode = null;
             editingText = "";
             repaint();
+        } else if (connectStartNode != null) {
+            // Cancelar modo de conexão
+            connectStartNode = null;
+            connectMouseWorld = null;
+            repaint();
         }
     }
     
@@ -653,6 +708,34 @@ public class FlowCanvas extends JPanel implements MouseListener, MouseMotionList
         repaint();
     }
     
+    // Novo: criar nó isolado (nunca cria conexão automática)
+    public void createIsolatedNode() {
+        if (flowDiagram == null) return;
+        FlowNode selectedNode = flowDiagram.getSelectedNode();
+        FlowNode newNode;
+
+        List<FlowNode> nodes = flowDiagram.getNodes();
+        if (nodes.isEmpty()) {
+            newNode = flowDiagram.addNode(DEFAULT_NODE_TEXT, CANVAS_MARGIN, CANVAS_MARGIN);
+        } else if (selectedNode != null) {
+            newNode = flowDiagram.addNode(DEFAULT_NODE_TEXT,
+                    (int) selectedNode.getX() + NODE_SPACING_X,
+                    (int) selectedNode.getY());
+        } else {
+            int maxX = Integer.MIN_VALUE;
+            int minY = Integer.MAX_VALUE;
+            for (FlowNode n : nodes) {
+                maxX = Math.max(maxX, (int) n.getX());
+                minY = Math.min(minY, (int) n.getY());
+            }
+            newNode = flowDiagram.addNode(DEFAULT_NODE_TEXT, maxX + NODE_SPACING_X, minY);
+        }
+
+        flowDiagram.selectNode(newNode);
+        startEditingNode(newNode);
+        repaint();
+    }
+
     private void drawNodes(Graphics2D g2d) {
         if (flowDiagram == null) return;
         
@@ -984,6 +1067,27 @@ public class FlowCanvas extends JPanel implements MouseListener, MouseMotionList
 // Node popup for color and shape
 private void showNodePopup(int x, int y, FlowNode node) {
     JPopupMenu popup = new JPopupMenu();
+
+    // Novo: iniciar/cancelar modo de conexão
+    JMenuItem connectItem = new JMenuItem("Conectar para...");
+    connectItem.addActionListener(ev -> {
+        connectStartNode = node;
+        connectMouseWorld = null;
+        requestFocusInWindow();
+        repaint();
+    });
+    popup.add(connectItem);
+    if (connectStartNode != null) {
+        JMenuItem cancelConnect = new JMenuItem("Cancelar modo de conexão");
+        cancelConnect.addActionListener(ev -> {
+            connectStartNode = null;
+            connectMouseWorld = null;
+            repaint();
+        });
+        popup.add(cancelConnect);
+    }
+
+    popup.addSeparator();
 
     JMenuItem fillColorItem = new JMenuItem("Mudar cor do preenchimento...");
     fillColorItem.addActionListener(ev -> {

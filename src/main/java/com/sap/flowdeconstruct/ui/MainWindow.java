@@ -280,6 +280,7 @@ public class MainWindow extends JFrame implements KeyListener {
         // Shortcuts
         String[] shortcuts = {
             "Tab        - Create connected node",
+            "Shift+Tab  - Create isolated node",
             "Enter      - Edit selected node",
             "Type text  - Auto-edit selected node",
             "Ctrl+Enter - Drill down to subflow",
@@ -312,427 +313,53 @@ public class MainWindow extends JFrame implements KeyListener {
     }
     
     private void setupKeyboardHandling() {
-        // Make sure the window can receive key events
+        // Permite que a janela receba eventos de teclado e registra este KeyListener
         setFocusable(true);
         addKeyListener(this);
-        
-        // Add global key event dispatcher to handle keys regardless of focus
+
         KeyboardFocusManager.getCurrentKeyboardFocusManager().addKeyEventDispatcher(e -> {
-            if (isActive()) {
-                if (e.getID() == KeyEvent.KEY_PRESSED) {
-                    handleGlobalKeyPress(e);
-                    // Don't consume the event - let it propagate for keyTyped processing
-                    return false;
-                } else if (e.getID() == KeyEvent.KEY_TYPED) {
-                    if (canvas.isEditingNode()) {
-                        return false; // Let it propagate to canvas during editing
-                    } else {
-                        keyTyped(e);
+            if (e.getID() == KeyEvent.KEY_PRESSED) {
+                switch (e.getKeyCode()) {
+                    case KeyEvent.VK_TAB:
+                        if (e.isShiftDown()) {
+                            // Shift+Tab: criar nó isolado
+                            if (canvas != null) {
+                                System.out.println("MainWindow.keyPressed: Calling createIsolatedNode() (Shift+Tab)");
+                                canvas.createIsolatedNode();
+                                return true;
+                            }
+                        } else {
+                            createNode();
+                            return true;
+                        }
+                        break;
+                    case KeyEvent.VK_ESCAPE:
+                        if (canvas != null) canvas.handleEscapeKey();
                         return true;
-                    }
                 }
             }
             return false;
         });
-        
-        // Canvas is already configured with KeyListener in its constructor
-        // Give initial focus to canvas
-        SwingUtilities.invokeLater(() -> {
-            System.out.println("MainWindow: Requesting focus for canvas");
-            canvas.requestFocusInWindow();
-            canvas.requestFocus();
-            
-            // Also ensure the main window has focus
-            this.requestFocus();
-            this.toFront();
-            
-            System.out.println("MainWindow: Canvas focusable: " + canvas.isFocusable());
-            System.out.println("MainWindow: Canvas has focus: " + canvas.hasFocus());
-        });
-    }
-    
-    private void handleGlobalKeyPress(KeyEvent e) {
-        if (currentFlow == null) {
-            return;
-        }
-        
-        int keyCode = e.getKeyCode();
-        boolean ctrl = e.isControlDown();
-        boolean shift = e.isShiftDown();
-        
-        // Handle help overlay first - multiple ways to open help
-        if (keyCode == KeyEvent.VK_SLASH || keyCode == KeyEvent.VK_F1 || keyCode == KeyEvent.VK_HELP ||
-            (keyCode == KeyEvent.VK_SLASH && shift) || keyCode == KeyEvent.VK_H) {
-            System.out.println("MainWindow.handleGlobalKeyPress: Help key detected");
-            toggleHelpOverlay();
-            return;
-        }
-        
-        if (helpVisible && keyCode == KeyEvent.VK_ESCAPE) {
-            hideHelpOverlay();
-            return;
-        }
-        
-        if (helpVisible) {
-            return; // Don't process other keys when help is visible
-        }
-        
-        switch (keyCode) {
-            case KeyEvent.VK_TAB:
-                System.out.println("MainWindow.handleGlobalKeyPress: TAB key detected");
-                if (!e.isShiftDown()) {
-                    createNode();
-                }
-                break;
-                
-            case KeyEvent.VK_ENTER:
-                if (ctrl) {
-                    drillDownToSubflow();
-                }
-                break;
-                
-            case KeyEvent.VK_N:
-                if (ctrl) {
-                    addNoteToSelectedNode();
-                }
-                break;
-                
-            case KeyEvent.VK_E:
-                if (ctrl) {
-                    exportFlow();
-                } else if (currentFlow != null && currentFlow.getSelectedNode() != null && !canvas.isEditingNode()) {
-                    canvas.startEditingSelectedNode();
-                }
-                break;
-                
-            case KeyEvent.VK_G:
-                if (ctrl) {
-                    openTranscriptionPromptDialog();
-                }
-                break;
-                
-            case KeyEvent.VK_ESCAPE:
-                if (canvas.isEditingNode()) {
-                    canvas.handleEscapeKey();
-                } else {
-                    handleEscape();
-                }
-                break;
-                
-            case KeyEvent.VK_UP:
-            case KeyEvent.VK_DOWN:
-            case KeyEvent.VK_LEFT:
-            case KeyEvent.VK_RIGHT:
-                navigateNodes(keyCode);
-                break;
-        }
-    }
-    
-    private void setupProjectListener() {
-        System.out.println("MainWindow: Setting up project listener");
-        projectManager.addStateListener((event, oldValue, newValue) -> {
-            System.out.println("MainWindow: Project event received: " + event);
-            SwingUtilities.invokeLater(() -> {
-                switch (event) {
-                    case "currentProjectChanged":
-                        System.out.println("MainWindow: Current project changed event");
-                        if (newValue instanceof FlowDiagram) {
-                            setCurrentFlow((FlowDiagram) newValue);
-                        }
-                        break;
-                    case "projectCreated":
-                        System.out.println("MainWindow: Project created event");
-                        if (newValue instanceof FlowDiagram) {
-                            setCurrentFlow((FlowDiagram) newValue);
-                            navigationStack.clear();
-                            updateBreadcrumb();
-                        }
-                        break;
-                    case "projectLoaded":
-                        System.out.println("MainWindow: Project loaded event");
-                        if (newValue instanceof FlowDiagram) {
-                            setCurrentFlow((FlowDiagram) newValue);
-                            navigationStack.clear();
-                            updateBreadcrumb();
-                        }
-                        break;
-                        
-                    case "projectClosed":
-                        System.out.println("MainWindow: Project closed event");
-                        setCurrentFlow(null);
-                        break;
-                    case "nodeModified":
-                        System.out.println("MainWindow: Node modified event");
-                        if (canvas != null) {
-                            canvas.repaint();
-                        }
-                        break;
-                }
-            });
-        });
-    }
-    
-    private void setCurrentFlow(FlowDiagram flow) {
-        System.out.println("Setting current flow: " + (flow != null ? flow.getName() : "null"));
-        
-        // Auto-save any current editing before changing flow (only if canvas exists)
-        if (canvas != null && canvas.isEditingNode()) {
-            System.out.println("Auto-saving current edit before changing flow");
-            canvas.finishEditingNode();
-        }
-        
-        this.currentFlow = flow;
-        
-        if (canvas == null) {
-            System.out.println("Canvas not yet initialized, flow will be set when canvas is ready");
-        } else {
-            System.out.println("Setting flow diagram on canvas");
-            canvas.setFlowDiagram(flow);
-        }
-        
-        updateBreadcrumb();
-        
-        // Request focus to ensure key events are received (only if canvas exists)
+
+        // Garantir foco inicial no canvas
         SwingUtilities.invokeLater(() -> {
             if (canvas != null) {
-                System.out.println("Requesting focus for canvas");
+                System.out.println("MainWindow: Requesting focus for canvas");
                 canvas.requestFocusInWindow();
+                canvas.requestFocus();
             }
+            this.requestFocus();
+            this.toFront();
         });
     }
     
-    private void updateBreadcrumb() {
-        StringBuilder breadcrumb = new StringBuilder("Main Flow");
-        
-        for (FlowDiagram flow : navigationStack) {
-            breadcrumb.append(" > ").append(flow.getName());
-        }
-        
-        if (currentFlow != null && !navigationStack.isEmpty()) {
-            breadcrumb.append(" > ").append(currentFlow.getName());
-        }
-        
-        breadcrumbLabel.setText(breadcrumb.toString());
-    }
-    
-    // Keyboard event handling
-    @Override
-    public void keyPressed(KeyEvent e) {
-        System.out.println("MainWindow.keyPressed: Key=" + KeyEvent.getKeyText(e.getKeyCode()) + 
-                          ", Ctrl=" + e.isControlDown() + ", Shift=" + e.isShiftDown());
-        
-        if (currentFlow == null) {
-            System.out.println("MainWindow.keyPressed: currentFlow is null, ignoring key event");
-            return;
-        }
-        
-        int keyCode = e.getKeyCode();
-        boolean ctrl = e.isControlDown();
-        boolean shift = e.isShiftDown();
-        
-        // Handle help overlay first
-        if (keyCode == KeyEvent.VK_SLASH && shift) { // ? key
-            System.out.println("MainWindow.keyPressed: Help key detected");
-            toggleHelpOverlay();
-            return;
-        }
-        
-        if (helpVisible && keyCode == KeyEvent.VK_ESCAPE) {
-            hideHelpOverlay();
-            return;
-        }
-        
-        if (helpVisible) {
-            return; // Don't process other keys when help is visible
-        }
-        
-        System.out.println("MainWindow.keyPressed: Processing keyCode=" + keyCode + " (" + KeyEvent.getKeyText(keyCode) + ")");
-        
-        switch (keyCode) {
-            case KeyEvent.VK_TAB:
-                System.out.println("MainWindow.keyPressed: TAB key detected");
-                if (!e.isShiftDown()) {
-                    System.out.println("MainWindow.keyPressed: Calling createNode()");
-                    createNode();
-                }
-                e.consume(); // Prevent default TAB behavior
-                break;
-                
-            case 0: // Handle unknown keyCode 0 - often Tab key on some systems
-                System.out.println("MainWindow.keyPressed: Unknown keyCode 0 detected - treating as TAB");
-                if (!e.isShiftDown()) {
-                    System.out.println("MainWindow.keyPressed: Calling createNode() for keyCode 0");
-                    createNode();
-                }
-                e.consume();
-                break;
-                
-            case KeyEvent.VK_ENTER:
-                System.out.println("MainWindow.keyPressed: ENTER key detected");
-                // Check if a node is currently being edited
-                if (canvas != null && canvas.isEditingNode()) {
-                    System.out.println("MainWindow.keyPressed: Node is being edited, letting canvas handle Enter");
-                    canvas.handleKeyTyped('\n');
-                } else if (ctrl) {
-                    System.out.println("MainWindow.keyPressed: Ctrl+Enter - drilling down");
-                    drillDownToSubflow();
-                }
-                break;
-                
-            case KeyEvent.VK_N:
-                System.out.println("MainWindow.keyPressed: N key detected");
-                if (ctrl) {
-                    System.out.println("MainWindow.keyPressed: Ctrl+N - adding note");
-                    addNoteToSelectedNode();
-                }
-                break;
-                
-            case KeyEvent.VK_E:
-                System.out.println("MainWindow.keyPressed: E key detected");
-                if (ctrl) {
-                    System.out.println("MainWindow.keyPressed: Ctrl+E - exporting");
-                    exportFlow();
-                } else if (currentFlow != null && currentFlow.getSelectedNode() != null && !canvas.isEditingNode()) {
-                    System.out.println("MainWindow.keyPressed: E - starting to edit node");
-                    startEditingSelectedNode();
-                }
-                break;
-                
-            case KeyEvent.VK_G:
-                System.out.println("MainWindow.keyPressed: G key detected");
-                if (ctrl) {
-                    System.out.println("MainWindow.keyPressed: Ctrl+G - open transcription prompt dialog");
-                    openTranscriptionPromptDialog();
-                }
-                break;
-                
-            case KeyEvent.VK_DELETE:
-                System.out.println("MainWindow.keyPressed: DELETE key detected");
-                if (!canvas.isEditingNode() && currentFlow != null && currentFlow.getSelectedNode() != null) {
-                    System.out.println("MainWindow.keyPressed: Deleting selected node");
-                    currentFlow.removeNode(currentFlow.getSelectedNode());
-                }
-                break;
-                
-            // Removed manual backspace handling to allow natural propagation
-                
-            case KeyEvent.VK_ESCAPE:
-                System.out.println("MainWindow.keyPressed: ESCAPE key detected");
-                if (canvas.isEditingNode()) {
-                    System.out.println("MainWindow.keyPressed: Node is being edited, calling handleEscapeKey");
-                    canvas.handleEscapeKey();
-                } else {
-                    handleEscape();
-                }
-                break;
-                
-            case KeyEvent.VK_M:
-                if (ctrl) {
-                    moveMode = !moveMode;
-                    System.out.println("Move mode " + (moveMode ? "enabled" : "disabled"));
-                }
-                break;
-            
-            case KeyEvent.VK_UP:
-                System.out.println("MainWindow.keyPressed: UP key detected");
-                if (moveMode && e.isShiftDown() && currentFlow != null && currentFlow.getSelectedNode() != null && !canvas.isEditingNode()) {
-                    moveSelectedNode(0, -10);
-                } else {
-                    navigateNodes(keyCode);
-                }
-                break;
-            
-            case KeyEvent.VK_DOWN:
-                System.out.println("MainWindow.keyPressed: DOWN key detected");
-                if (moveMode && e.isShiftDown() && currentFlow != null && currentFlow.getSelectedNode() != null && !canvas.isEditingNode()) {
-                    moveSelectedNode(0, 10);
-                } else {
-                    navigateNodes(keyCode);
-                }
-                break;
-            
-            case KeyEvent.VK_LEFT:
-                System.out.println("MainWindow.keyPressed: LEFT key detected");
-                if (moveMode && e.isShiftDown() && currentFlow != null && currentFlow.getSelectedNode() != null && !canvas.isEditingNode()) {
-                    moveSelectedNode(-10, 0);
-                } else {
-                    navigateNodes(keyCode);
-                }
-                break;
-            
-            case KeyEvent.VK_RIGHT:
-                System.out.println("MainWindow.keyPressed: RIGHT key detected");
-                if (moveMode && e.isShiftDown() && currentFlow != null && currentFlow.getSelectedNode() != null && !canvas.isEditingNode()) {
-                    moveSelectedNode(10, 0);
-                } else {
-                    navigateNodes(keyCode);
-                }
-                break;
-                
-            case KeyEvent.VK_SLASH:
-                if (shift) {
-                    System.out.println("MainWindow.keyPressed: ? key detected (Shift+/)");
-                    toggleHelpOverlay();
-                }
-                break;
-                
-            default:
-                System.out.println("MainWindow.keyPressed: Unhandled key: " + KeyEvent.getKeyText(keyCode) + " (keyCode=" + keyCode + ")");
-                break;
-        }
-    }
-    
-    @Override
-    public void keyTyped(KeyEvent e) {
-        // If a node is selected and user types a character, start editing automatically
-        if (currentFlow != null && currentFlow.getSelectedNode() != null && 
-            !canvas.isEditingNode()) {
-            
-            char keyChar = e.getKeyChar();
-            
-            // Only start editing for printable characters (not control characters)
-            if (!Character.isISOControl(keyChar)) {
-                System.out.println("MainWindow.keyTyped: Auto-starting edit for character: " + keyChar);
-                startEditingSelectedNode();
-                
-                // Pass the character to the canvas to be processed
-                if (canvas != null) {
-                    canvas.handleKeyTyped(keyChar);
-                }
-            }
-        } else if (canvas != null && canvas.isEditingNode()) {
-            // If already editing, just pass the character to canvas
-            char keyChar = e.getKeyChar();
-            if (!Character.isISOControl(keyChar)) {
-                canvas.handleKeyTyped(keyChar);
-            }
-        }
-    }
-    
-    @Override
-    public void keyReleased(KeyEvent e) {
-        // Not used
-    }
-    
-    // Action methods
     private void createNode() {
         System.out.println("MainWindow.createNode() called");
-        if (canvas == null) {
-            System.out.println("ERROR: canvas is null");
-            return;
+        // Mantém comportamento atual
+        if (canvas != null) {
+            System.out.println("Calling canvas.createNode()");
+            canvas.createNode();
         }
-        if (currentFlow == null) {
-            System.out.println("WARN: currentFlow is null - creating a new project automatically");
-            FlowDiagram newFlow = projectManager.createNewProject();
-            // Ensure UI is bound immediately
-            setCurrentFlow(newFlow);
-        }
-        if (currentFlow == null) {
-            System.out.println("ERROR: currentFlow is still null after attempting to create new project");
-            return;
-        }
-        System.out.println("Calling canvas.createNode()");
-        canvas.createNode();
     }
     
     private void startEditingSelectedNode() {
@@ -952,5 +579,173 @@ public class MainWindow extends JFrame implements KeyListener {
         }
         TranscriptionPromptDialog dialog = new TranscriptionPromptDialog(this);
         dialog.setVisible(true);
+    }
+    
+    // Keyboard event handling (invocado pelo FlowCanvas via parent KeyListener)
+    @Override
+    public void keyPressed(KeyEvent e) {
+        if (currentFlow == null) {
+            return;
+        }
+    
+        int keyCode = e.getKeyCode();
+        boolean ctrl = e.isControlDown();
+        boolean shift = e.isShiftDown();
+    
+        // Ajuda (Shift + / -> ?) e F1
+        if ((keyCode == KeyEvent.VK_SLASH && shift) || keyCode == KeyEvent.VK_F1 || keyCode == KeyEvent.VK_HELP) {
+            toggleHelpOverlay();
+            return;
+        }
+        if (helpVisible) {
+            if (keyCode == KeyEvent.VK_ESCAPE) hideHelpOverlay();
+            return; // não processa outras teclas quando ajuda está visível
+        }
+    
+        switch (keyCode) {
+            case KeyEvent.VK_TAB:
+                if (shift) {
+                    if (canvas != null) canvas.createIsolatedNode();
+                } else {
+                    createNode();
+                }
+                e.consume();
+                break;
+    
+            case KeyEvent.VK_ENTER:
+                if (canvas != null && canvas.isEditingNode()) {
+                    // Deixe o canvas finalizar a edição via handleKeyTyped('\n')
+                    canvas.handleKeyTyped('\n');
+                } else if (ctrl) {
+                    drillDownToSubflow();
+                } else if (currentFlow.getSelectedNode() != null && !canvas.isEditingNode()) {
+                    // Enter inicia edição (sem Ctrl)
+                    startEditingSelectedNode();
+                }
+                break;
+    
+            case KeyEvent.VK_N:
+                if (ctrl) {
+                    addNoteToSelectedNode();
+                }
+                break;
+    
+            case KeyEvent.VK_E:
+                if (ctrl) {
+                    exportFlow();
+                } else if (currentFlow.getSelectedNode() != null && canvas != null && !canvas.isEditingNode()) {
+                    startEditingSelectedNode();
+                }
+                break;
+    
+            case KeyEvent.VK_G:
+                if (ctrl) {
+                    openTranscriptionPromptDialog();
+                }
+                break;
+    
+            case KeyEvent.VK_DELETE:
+                if (canvas != null && !canvas.isEditingNode() && currentFlow.getSelectedNode() != null) {
+                    currentFlow.removeNode(currentFlow.getSelectedNode());
+                    canvas.repaint();
+                }
+                break;
+    
+            case KeyEvent.VK_ESCAPE:
+                if (canvas != null && canvas.isEditingNode()) {
+                    canvas.handleEscapeKey();
+                } else {
+                    handleEscape();
+                }
+                break;
+    
+            case KeyEvent.VK_M:
+                if (ctrl) {
+                    moveMode = !moveMode;
+                }
+                break;
+    
+            case KeyEvent.VK_UP:
+            case KeyEvent.VK_DOWN:
+            case KeyEvent.VK_LEFT:
+            case KeyEvent.VK_RIGHT:
+                if (moveMode && shift && currentFlow.getSelectedNode() != null && canvas != null && !canvas.isEditingNode()) {
+                    int dx = 0, dy = 0;
+                    switch (keyCode) {
+                        case KeyEvent.VK_UP: dy = -10; break;
+                        case KeyEvent.VK_DOWN: dy = 10; break;
+                        case KeyEvent.VK_LEFT: dx = -10; break;
+                        case KeyEvent.VK_RIGHT: dx = 10; break;
+                    }
+                    moveSelectedNode(dx, dy);
+                } else {
+                    navigateNodes(keyCode);
+                }
+                break;
+            default:
+                // outros atalhos não tratados aqui
+                break;
+        }
+    }
+
+    @Override
+    public void keyTyped(KeyEvent e) {
+        if (currentFlow != null && canvas != null) {
+            if (currentFlow.getSelectedNode() != null && !canvas.isEditingNode()) {
+                char keyChar = e.getKeyChar();
+                if (!Character.isISOControl(keyChar)) {
+                    startEditingSelectedNode();
+                    canvas.handleKeyTyped(keyChar);
+                }
+            } else if (canvas.isEditingNode()) {
+                char keyChar = e.getKeyChar();
+                if (!Character.isISOControl(keyChar)) {
+                    canvas.handleKeyTyped(keyChar);
+                }
+            }
+        }
+    }
+
+    @Override
+    public void keyReleased(KeyEvent e) {
+        // not used
+    }
+ 
+    private void setupProjectListener() {
+        // Escuta eventos do ProjectManager para manter a UI sincronizada com o projeto atual
+        projectManager.addStateListener((event, oldValue, newValue) -> {
+            System.out.println("MainWindow: ProjectManager event: " + event);
+            if ("currentProjectChanged".equals(event)
+                    || "projectLoaded".equals(event)
+                    || "projectCreated".equals(event)) {
+                FlowDiagram flow = (newValue instanceof FlowDiagram)
+                        ? (FlowDiagram) newValue
+                        : projectManager.getCurrentProject();
+                SwingUtilities.invokeLater(() -> setCurrentFlow(flow));
+            } else if ("projectModified".equals(event) || "nodeModified".equals(event)) {
+                if (canvas != null) {
+                    SwingUtilities.invokeLater(() -> canvas.repaint());
+                }
+            }
+        });
+    }
+
+    private void setCurrentFlow(FlowDiagram flow) {
+        System.out.println("MainWindow.setCurrentFlow: " + (flow != null ? flow.getName() : "null"));
+        this.currentFlow = flow;
+
+        // Atualiza canvas
+        if (canvas != null) {
+            canvas.setFlowDiagram(flow);
+            canvas.requestFocusInWindow();
+        }
+
+        // Atualiza breadcrumb
+        if (breadcrumbLabel != null) {
+            String label = (flow != null && flow.getName() != null && !flow.getName().isEmpty())
+                    ? flow.getName()
+                    : "Main Flow";
+            breadcrumbLabel.setText(label);
+        }
     }
 }

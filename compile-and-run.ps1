@@ -12,10 +12,12 @@ if (-not $env:JAVA_HOME) {
 Write-Host "Java version:" -ForegroundColor Yellow
 java -version
 
-# Create directories
-if (!(Test-Path "target\classes")) {
-    New-Item -ItemType Directory -Path "target\classes" -Force | Out-Null
+# Clean classes to avoid stale outputs
+if (Test-Path "target\classes") {
+    Write-Host "Cleaning target\\classes..." -ForegroundColor Yellow
+    Remove-Item -Recurse -Force "target\classes"
 }
+New-Item -ItemType Directory -Path "target\classes" -Force | Out-Null
 
 $libDir = "target\lib"
 if (!(Test-Path $libDir)) {
@@ -67,13 +69,12 @@ Write-Host "Found $($javaFiles.Count) Java files" -ForegroundColor Green
 Write-Host "Compiling..." -ForegroundColor Yellow
 $sourceFiles = $javaFiles | ForEach-Object { $_.FullName }
 
-try {
-    & javac -cp $classpath -d "target\classes" @sourceFiles
-    Write-Host "Compilation successful!" -ForegroundColor Green
-} catch {
-    Write-Host "Compilation failed!" -ForegroundColor Red
-    exit 1
+& javac -encoding UTF-8 -cp $classpath -d "target\classes" @sourceFiles
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "Compilation failed! Exit code: $LASTEXITCODE" -ForegroundColor Red
+    exit $LASTEXITCODE
 }
+Write-Host "Compilation successful!" -ForegroundColor Green
 
 # Run application
 Write-Host "Starting application..." -ForegroundColor Yellow
