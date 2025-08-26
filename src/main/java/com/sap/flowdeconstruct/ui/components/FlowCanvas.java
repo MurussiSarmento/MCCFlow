@@ -861,7 +861,7 @@ public class FlowCanvas extends JPanel implements MouseListener, MouseMotionList
         Window window = SwingUtilities.getWindowAncestor(this);
         Frame owner = (window instanceof Frame) ? (Frame) window : null;
         ConnectionDialog dialog = new ConnectionDialog(owner, connection);
-        dialog.setLocationRelativeTo(this);
+        dialog.setLocationRelativeTo(owner);
         dialog.setVisible(true);
         if (dialog.isConfirmed()) {
             connection.setDirectionStyle(dialog.getSelectedDirectionStyle());
@@ -1216,6 +1216,7 @@ private String colorToHex(Color c) {
     }
 
 private Color chooseColor(String title, Color initial) {
-    return JColorChooser.showDialog(this, title, initial);
+    Window owner = SwingUtilities.getWindowAncestor(this);
+    return JColorChooser.showDialog(owner != null ? owner : this, title, initial);
 }
 }

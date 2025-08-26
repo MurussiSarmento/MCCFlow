@@ -29,8 +29,8 @@ public class TranscriptionPromptDialog extends JDialog implements KeyListener {
 
         this.promptBuilder = new PromptBuilder();
 
-        setSize(800, 600);
-        setLocationRelativeTo(getParent());
+        setSize(500, 400);
+        setLocationRelativeTo(getOwner());
         setDefaultCloseOperation(DISPOSE_ON_CLOSE);
         getContentPane().setBackground(BACKGROUND_COLOR);
         setLayout(new BorderLayout());

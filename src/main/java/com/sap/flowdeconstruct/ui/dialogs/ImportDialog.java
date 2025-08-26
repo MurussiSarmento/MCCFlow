@@ -31,7 +31,7 @@ public class ImportDialog extends JDialog implements KeyListener {
 
     private void initializeDialog() {
         setSize(500, 400);
-        setLocationRelativeTo(getParent());
+        setLocationRelativeTo(getOwner());
         setDefaultCloseOperation(DISPOSE_ON_CLOSE);
         getContentPane().setBackground(BACKGROUND_COLOR);
     }

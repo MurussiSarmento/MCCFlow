@@ -33,7 +33,7 @@ public class NoteDialog extends JDialog implements KeyListener {
     
     private void initializeDialog() {
         setSize(400, 300);
-        setLocationRelativeTo(getParent());
+        setLocationRelativeTo(getOwner());
         setDefaultCloseOperation(DISPOSE_ON_CLOSE);
         
         // Apply dark theme

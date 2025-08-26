@@ -55,11 +55,9 @@ public class ExportDialog extends JDialog implements KeyListener {
     }
     
     private void initializeDialog() {
-        setSize(500, 300);
-        setLocationRelativeTo(getParent());
+        setSize(600, 500);
+        setLocationRelativeTo(getOwner());
         setDefaultCloseOperation(DISPOSE_ON_CLOSE);
-        
-        // Apply dark theme
         getContentPane().setBackground(BACKGROUND_COLOR);
     }
     
