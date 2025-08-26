@@ -54,6 +54,10 @@ public class PromptBuilder {
         sb.append("  FillColor: #RRGGBB  (opcional)\n");
         sb.append("  BorderColor: #RRGGBB  (opcional)\n");
         sb.append("  TextColor: #RRGGBB  (opcional)\n");
+        sb.append("  TextFontFamily: NomeDaFonte  (opcional)\n");
+        sb.append("  TextFontSize: 12  (opcional)\n");
+        sb.append("  TextFontBold: true|false  (opcional)\n");
+        sb.append("  TextFontItalic: true|false  (opcional)\n");
         sb.append("  *Notes: Observação opcional*  (opcional)\n");
         sb.append("\n");
         sb.append("## Connections\n");

@@ -3,6 +3,7 @@ package com.sap.flowdeconstruct.model;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import java.awt.Point;
 import java.awt.Color;
+import java.awt.Font;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -34,6 +35,9 @@ public class FlowNode {
     private String textColorHex; // e.g. "#cccccc"
     private int width;
     private int height;
+    private String textFontFamily; // e.g. "Monospaced"
+    private int textFontSize;      // e.g. 12
+    private int textFontStyle;     // Font.PLAIN, Font.BOLD, Font.ITALIC (or combination)
 
     // UI state (not persisted)
     @JsonIgnore
@@ -58,6 +62,10 @@ public class FlowNode {
         this.textColorHex = "#cccccc";
         this.width = 120;
         this.height = 40;
+        // Defaults for text font
+        this.textFontFamily = Font.MONOSPACED; // logical family
+        this.textFontSize = 12;
+        this.textFontStyle = Font.PLAIN;
     }
     
     public FlowNode(String text) {
@@ -287,5 +295,37 @@ public class FlowNode {
         String old = this.textColorHex;
         this.textColorHex = textColorHex;
         notifyListeners("textColorHex", old, textColorHex);
+    }
+
+    // New: text font getters/setters
+    public String getTextFontFamily() {
+        return textFontFamily;
+    }
+
+    public void setTextFontFamily(String textFontFamily) {
+        String old = this.textFontFamily;
+        this.textFontFamily = textFontFamily;
+        notifyListeners("textFontFamily", old, textFontFamily);
+    }
+
+    public int getTextFontSize() {
+        return textFontSize;
+    }
+
+    public void setTextFontSize(int textFontSize) {
+        int old = this.textFontSize;
+        int val = Math.max(6, Math.min(96, textFontSize));
+        this.textFontSize = val;
+        notifyListeners("textFontSize", old, val);
+    }
+
+    public int getTextFontStyle() {
+        return textFontStyle;
+    }
+
+    public void setTextFontStyle(int textFontStyle) {
+        int old = this.textFontStyle;
+        this.textFontStyle = textFontStyle;
+        notifyListeners("textFontStyle", old, textFontStyle);
     }
 }

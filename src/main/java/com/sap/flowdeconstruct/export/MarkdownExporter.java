@@ -44,6 +44,14 @@ public class MarkdownExporter {
             if (node.getTextColorHex() != null) {
                 sb.append(indent).append("  TextColor: ").append(node.getTextColorHex()).append("\n");
             }
+            if (node.getTextFontFamily() != null && !node.getTextFontFamily().trim().isEmpty()) {
+                sb.append(indent).append("  TextFontFamily: ").append(node.getTextFontFamily()).append("\n");
+            }
+            if (node.getTextFontSize() > 0) {
+                sb.append(indent).append("  TextFontSize: ").append(node.getTextFontSize()).append("\n");
+            }
+            sb.append(indent).append("  TextFontBold: ").append((node.getTextFontStyle() & java.awt.Font.BOLD) != 0).append("\n");
+            sb.append(indent).append("  TextFontItalic: ").append((node.getTextFontStyle() & java.awt.Font.ITALIC) != 0).append("\n");
             if (includeNotes && !node.getNotes().isEmpty()) {
                 sb.append(indent).append("  *Notes: ").append(escapeMarkdown(node.getNotes())).append("*\n");
             }

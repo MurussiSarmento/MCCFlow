@@ -100,6 +100,24 @@ public class MarkdownImporter {
                 } else if ((normalized.startsWith("TextColor:")) && currentNode != null) {
                     String color = normalized.substring("TextColor:".length()).trim();
                     currentNode.setTextColorHex(color);
+                } else if ((normalized.startsWith("TextFontFamily:")) && currentNode != null) {
+                    String fam = normalized.substring("TextFontFamily:".length()).trim();
+                    currentNode.setTextFontFamily(fam);
+                } else if ((normalized.startsWith("TextFontSize:")) && currentNode != null) {
+                    String szStr = normalized.substring("TextFontSize:".length()).trim();
+                    try { currentNode.setTextFontSize(Integer.parseInt(szStr)); } catch (Exception ignore) {}
+                } else if ((normalized.startsWith("TextFontBold:")) && currentNode != null) {
+                    String val = normalized.substring("TextFontBold:".length()).trim();
+                    boolean bold = Boolean.parseBoolean(val);
+                    int style = currentNode.getTextFontStyle();
+                    if (bold) style |= java.awt.Font.BOLD; else style &= ~java.awt.Font.BOLD;
+                    currentNode.setTextFontStyle(style);
+                } else if ((normalized.startsWith("TextFontItalic:")) && currentNode != null) {
+                    String val = normalized.substring("TextFontItalic:".length()).trim();
+                    boolean italic = Boolean.parseBoolean(val);
+                    int style = currentNode.getTextFontStyle();
+                    if (italic) style |= java.awt.Font.ITALIC; else style &= ~java.awt.Font.ITALIC;
+                    currentNode.setTextFontStyle(style);
                 } else if ((normalized.startsWith("*Notes:") || normalized.startsWith("Notes:")) && currentNode != null) {
                     // Parse note line
                     String noteText = normalized;

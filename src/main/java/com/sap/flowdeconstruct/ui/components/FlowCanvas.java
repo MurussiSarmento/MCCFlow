@@ -4,6 +4,7 @@ import com.sap.flowdeconstruct.model.FlowConnection;
 import com.sap.flowdeconstruct.model.FlowDiagram;
 import com.sap.flowdeconstruct.model.FlowNode;
 import com.sap.flowdeconstruct.ui.dialogs.ConnectionDialog;
+import com.sap.flowdeconstruct.ui.dialogs.TextStyleDialog;
 
 import javax.swing.*;
 import java.awt.*;
@@ -812,7 +813,18 @@ public class FlowCanvas extends JPanel implements MouseListener, MouseMotionList
         // Node text
         Color textColor = parseHexColor(node.getTextColorHex(), TEXT_COLOR);
         g2d.setColor(textColor);
-        g2d.setFont(MONO_FONT);
+        // Use per-node font if available
+        String family = (node.getTextFontFamily() != null && !node.getTextFontFamily().trim().isEmpty()) ? node.getTextFontFamily() : Font.MONOSPACED;
+        int size = node.getTextFontSize() > 0 ? node.getTextFontSize() : 12;
+        int style = node.getTextFontStyle();
+        Font nodeFont;
+        try {
+            nodeFont = new Font(family, style, size);
+            if (nodeFont == null) nodeFont = MONO_FONT;
+        } catch (Exception ex) {
+            nodeFont = MONO_FONT;
+        }
+        g2d.setFont(nodeFont);
         
         String text = isEditing ? editingText : node.getText();
         FontMetrics fm = g2d.getFontMetrics();
@@ -1111,12 +1123,25 @@ private void showNodePopup(int x, int y, FlowNode node) {
     });
     popup.add(borderColorItem);
 
-    JMenuItem textColorItem = new JMenuItem("Mudar cor do texto...");
+    JMenuItem textColorItem = new JMenuItem("Texto: cor e fonte...");
     textColorItem.addActionListener(ev -> {
-        Color initial = parseHexColor(node.getTextColorHex(), TEXT_COLOR);
-        Color chosen = chooseColor("Selecione a cor do texto", initial);
-        if (chosen != null) {
-            node.setTextColorHex(colorToHex(chosen));
+        Window window = SwingUtilities.getWindowAncestor(this);
+        Frame owner = (window instanceof Frame) ? (Frame) window : null;
+        Color initialColor = parseHexColor(node.getTextColorHex(), TEXT_COLOR);
+        String initialFamily = (node.getTextFontFamily() != null && !node.getTextFontFamily().trim().isEmpty()) ? node.getTextFontFamily() : Font.MONOSPACED;
+        int initialSize = node.getTextFontSize() > 0 ? node.getTextFontSize() : 12;
+        int initialStyle = node.getTextFontStyle();
+        TextStyleDialog dlg = new TextStyleDialog(owner, initialColor, initialFamily, initialSize, initialStyle);
+        dlg.setLocationRelativeTo(owner);
+        dlg.setVisible(true);
+        if (dlg.isConfirmed()) {
+            Color chosen = dlg.getSelectedColor();
+            if (chosen != null) {
+                node.setTextColorHex(colorToHex(chosen));
+            }
+            node.setTextFontFamily(dlg.getSelectedFamily());
+            node.setTextFontSize(dlg.getSelectedSize());
+            node.setTextFontStyle(dlg.getSelectedStyle());
             repaint();
         }
     });
