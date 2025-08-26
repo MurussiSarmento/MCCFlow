@@ -14,6 +14,8 @@ import java.awt.geom.AffineTransform;
 import java.awt.geom.Point2D;
 import java.util.List;
 import java.util.ArrayList;
+import java.util.Date;
+import java.text.SimpleDateFormat;
 
 /**
  * Canvas component for rendering and interacting with flow diagrams
@@ -29,7 +31,7 @@ public class FlowCanvas extends JPanel implements MouseListener, MouseMotionList
     private static final Color TEXT_COLOR = new Color(0xcc, 0xcc, 0xcc);
     private static final Color CONNECTION_COLOR = new Color(0x66, 0x66, 0x66);
     private static final Color SUBFLOW_INDICATOR_COLOR = new Color(0x5f, 0x9e, 0xa0);
-    
+    private static final SimpleDateFormat TIMESTAMP_FMT = new SimpleDateFormat("dd/MM/yyyy HH:mm");
     private static final Font MONO_FONT = new Font(Font.MONOSPACED, Font.PLAIN, 12);
     private static final int NODE_WIDTH = 120;
     private static final int NODE_HEIGHT = 40;
@@ -268,16 +270,18 @@ public class FlowCanvas extends JPanel implements MouseListener, MouseMotionList
             g2d.setFont(MONO_FONT);
             g2d.setColor(TEXT_COLOR);
             String label = ev.getLabel();
-            int strW = g2d.getFontMetrics().stringWidth(label);
+            Date ts = ev.getTimestamp();
+            String labelText = (ts != null ? (TIMESTAMP_FMT.format(ts) + " - ") : "") + (label != null ? label : "");
+            int strW = g2d.getFontMetrics().stringWidth(labelText);
             int lx = Math.max(trackX, Math.min(ex - strW / 2, trackX + trackW - strW));
             int ly = ey - TIMELINE_EVENT_RADIUS - 6;
-            g2d.drawString(label, lx, ly);
+            g2d.drawString(labelText, lx, ly);
         }
 
         // Hint
         g2d.setFont(MONO_FONT.deriveFont(10f));
         g2d.setColor(TEXT_COLOR.darker());
-        g2d.drawString("Clique na faixa para adicionar evento; arraste eventos para reordenar", trackX, trackY + TIMELINE_TRACK_HEIGHT + 18);
+        g2d.drawString("Clique na faixa para adicionar evento; arraste eventos para ordenar por data", trackX, trackY + TIMELINE_TRACK_HEIGHT + 18);
     }
 
     private TimelineEvent findTimelineEventAt(Point p) {
@@ -475,24 +479,27 @@ public class FlowCanvas extends JPanel implements MouseListener, MouseMotionList
             if (isOnTimelineTrack(e.getPoint())) {
                 TimelineEvent hit = (flowDiagram != null) ? findTimelineEventAt(e.getPoint()) : null;
 
-                // Renomear evento com duplo clique (botão esquerdo)
+                // Editar evento com duplo clique (botão esquerdo)
                 if (hit != null && SwingUtilities.isLeftMouseButton(e) && e.getClickCount() == 2) {
-                    promptRenameTimelineEvent(hit);
+                    promptEditTimelineEvent(hit);
                     return;
                 }
 
-                // Renomear evento com botão direito
+                // Editar evento com botão direito
                 if (hit != null && SwingUtilities.isRightMouseButton(e)) {
-                    promptRenameTimelineEvent(hit);
+                    promptEditTimelineEvent(hit);
                     return;
                 }
 
-                // Criar novo evento ao clicar na faixa (botão esquerdo) e já perguntar o nome
+                // Criar novo evento ao clicar na faixa (botão esquerdo) e já perguntar o nome/data
                 if (hit == null && flowDiagram != null && SwingUtilities.isLeftMouseButton(e)) {
                     double pos = positionFromPointOnTrack(e.getPoint());
                     TimelineEvent ev = flowDiagram.addTimelineEvent("Evento", pos);
-                    // Prompt imediato para renomear após criação
-                    promptRenameTimelineEvent(ev);
+                    // Definir timestamp inicial com base na posição relativa entre vizinhos
+                    Date ts = computeTimestampForPosition(pos, ev);
+                    flowDiagram.updateTimelineEvent(ev, null, null, ts, true);
+                    // Prompt para editar label e data/hora
+                    promptEditTimelineEvent(ev);
                     repaint();
                     return;
                 }
@@ -633,9 +640,14 @@ public class FlowCanvas extends JPanel implements MouseListener, MouseMotionList
     public void mouseReleased(MouseEvent e) {
         // Finish timeline drag if any
         if (draggingEvent != null) {
+            // Ajusta timestamp conforme nova posição e normaliza
+            double pos = draggingEvent.getPosition();
+            Date ts = computeTimestampForPosition(pos, draggingEvent);
+            flowDiagram.updateTimelineEvent(draggingEvent, null, null, ts, true);
             draggingEvent = null;
             dragging = false;
             draggingNode = null;
+            repaint();
             return;
         }
         
@@ -1387,15 +1399,88 @@ private Color chooseColor(String title, Color initial) {
 }
 
     private void promptRenameTimelineEvent(TimelineEvent ev) {
+        // Mantém compatibilidade chamando editor completo
+        promptEditTimelineEvent(ev);
+    }
+
+    private void promptEditTimelineEvent(TimelineEvent ev) {
         if (ev == null || flowDiagram == null) return;
         String current = ev.getLabel();
-        String input = JOptionPane.showInputDialog(this, "Nome do evento:", current != null ? current : "");
-        if (input != null) {
-            String newLabel = input.trim();
-            if (!newLabel.isEmpty() && !newLabel.equals(current)) {
-                flowDiagram.updateTimelineEvent(ev, newLabel, null, false);
-                repaint();
+        Date currentTs = ev.getTimestamp() != null ? (Date) ev.getTimestamp().clone() : new Date();
+
+        JTextField labelField = new JTextField(current != null ? current : "", 24);
+        SpinnerDateModel dateModel = new SpinnerDateModel(currentTs, null, null, java.util.Calendar.MINUTE);
+        JSpinner dateSpinner = new JSpinner(dateModel);
+        dateSpinner.setEditor(new JSpinner.DateEditor(dateSpinner, "dd/MM/yyyy HH:mm"));
+
+        JPanel panel = new JPanel(new GridBagLayout());
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(4,4,4,4);
+        gbc.gridx = 0; gbc.gridy = 0; gbc.anchor = GridBagConstraints.EAST;
+        panel.add(new JLabel("Descrição:"), gbc);
+        gbc.gridx = 1; gbc.gridy = 0; gbc.fill = GridBagConstraints.HORIZONTAL; gbc.weightx = 1.0;
+        panel.add(labelField, gbc);
+        gbc.gridx = 0; gbc.gridy = 1; gbc.weightx = 0; gbc.fill = GridBagConstraints.NONE; gbc.anchor = GridBagConstraints.EAST;
+        panel.add(new JLabel("Data e hora:"), gbc);
+        gbc.gridx = 1; gbc.gridy = 1; gbc.fill = GridBagConstraints.HORIZONTAL; gbc.weightx = 1.0;
+        panel.add(dateSpinner, gbc);
+
+        int res = JOptionPane.showConfirmDialog(this, panel, "Editar evento da linha do tempo", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+        if (res == JOptionPane.OK_OPTION) {
+            String newLabel = labelField.getText() != null ? labelField.getText().trim() : "";
+            Date newTs = (Date) dateSpinner.getValue();
+            if (newTs == null) newTs = new Date();
+            flowDiagram.updateTimelineEvent(ev, newLabel.isEmpty() ? null : newLabel, null, newTs, true);
+            repaint();
+        }
+    }
+
+    private Date computeTimestampForPosition(double pos, TimelineEvent exclude) {
+        if (flowDiagram == null) return new Date();
+        List<TimelineEvent> events = new ArrayList<>(flowDiagram.getTimelineEvents());
+        if (exclude != null) {
+            events.removeIf(ev -> ev == exclude);
+        }
+        if (events.isEmpty()) {
+            return new Date();
+        }
+        // Encontrar vizinhos pela posição atual
+        events.sort((a, b) -> Double.compare(a.getPosition(), b.getPosition()));
+        TimelineEvent prev = null;
+        TimelineEvent next = null;
+        for (int i = 0; i < events.size(); i++) {
+            TimelineEvent ev = events.get(i);
+            if (pos <= ev.getPosition()) {
+                next = ev;
+                prev = (i - 1 >= 0) ? events.get(i - 1) : null;
+                break;
             }
+        }
+        if (next == null) {
+            prev = events.get(events.size() - 1);
+        }
+        Date prevTs = prev != null ? prev.getTimestamp() : null;
+        Date nextTs = next != null ? next.getTimestamp() : null;
+        return midpointTimestamp(prevTs, nextTs);
+    }
+
+    private Date midpointTimestamp(Date prev, Date next) {
+        if (prev != null && next != null) {
+            long a = prev.getTime();
+            long b = next.getTime();
+            if (b <= a) {
+                // Garante ordem estrita
+                return new Date(a + 1);
+            }
+            long mid = a + (b - a) / 2L;
+            if (mid == a) mid = a + 1; // assegura incremento
+            return new Date(mid);
+        } else if (prev == null && next != null) {
+            return new Date(next.getTime() - 1L);
+        } else if (prev != null) { // next == null
+            return new Date(prev.getTime() + 1L);
+        } else {
+            return new Date();
         }
     }
 }

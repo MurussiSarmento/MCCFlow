@@ -103,9 +103,20 @@ public class FlowDiagram {
 
     // ---------- Timeline (Linha do tempo) ----------
     public List<TimelineEvent> getTimelineEvents() {
-        // retorna cópia ordenada por position
+        // retorna cópia ordenada por timestamp (data/hora); fallback por position
         List<TimelineEvent> copy = new ArrayList<>(timelineEvents);
-        copy.sort(Comparator.comparingDouble(TimelineEvent::getPosition));
+        copy.sort((a, b) -> {
+            java.util.Date ta = a.getTimestamp();
+            java.util.Date tb = b.getTimestamp();
+            if (ta == null && tb == null) {
+                int cmp = Double.compare(a.getPosition(), b.getPosition());
+                return cmp != 0 ? cmp : a.getLabel().compareToIgnoreCase(b.getLabel());
+            }
+            if (ta == null) return 1; // nulls last
+            if (tb == null) return -1;
+            int cmp = ta.compareTo(tb);
+            return cmp != 0 ? cmp : a.getLabel().compareToIgnoreCase(b.getLabel());
+        });
         return copy;
     }
 
@@ -135,6 +146,19 @@ public class FlowDiagram {
         notifyListeners("timelineEventUpdated", snapshot, e);
     }
 
+    // Nova sobrecarga: permite atualizar timestamp também
+    public void updateTimelineEvent(TimelineEvent e, String newLabel, Double newPosition, java.util.Date newTimestamp, boolean normalizeAfter) {
+        if (e == null) return;
+        Object snapshot = new TimelineEvent(e.getLabel(), e.getPosition(), e.getTimestamp());
+        if (newLabel != null) e.setLabel(newLabel);
+        if (newPosition != null) e.setPosition(clamp01(newPosition));
+        if (newTimestamp != null) e.setTimestamp(newTimestamp);
+        if (normalizeAfter) normalizeTimelinePositions();
+        updateModifiedTime();
+        notifyListeners("timelineEventUpdated", snapshot, e);
+    }
+
+
     public void removeTimelineEvent(TimelineEvent event) {
         if (event == null) return;
         if (this.timelineEvents.remove(event)) {
@@ -145,8 +169,16 @@ public class FlowDiagram {
 
     public void normalizeTimelinePositions() {
         if (timelineEvents == null || timelineEvents.isEmpty()) return;
-        // Ordena e reatribui posições igualmente espaçadas entre 0..1
-        timelineEvents.sort(Comparator.comparingDouble(TimelineEvent::getPosition));
+        // Ordena por data/hora (timestamp) e reatribui posições igualmente espaçadas entre 0..1
+        timelineEvents.sort((a, b) -> {
+            java.util.Date ta = a.getTimestamp();
+            java.util.Date tb = b.getTimestamp();
+            if (ta == null && tb == null) return Double.compare(a.getPosition(), b.getPosition());
+            if (ta == null) return 1;
+            if (tb == null) return -1;
+            int cmp = ta.compareTo(tb);
+            return cmp != 0 ? cmp : a.getLabel().compareToIgnoreCase(b.getLabel());
+        });
         int n = timelineEvents.size();
         if (n == 1) {
             timelineEvents.get(0).setPosition(0.5);
