@@ -3,6 +3,7 @@ package com.sap.flowdeconstruct.ui.components;
 import com.sap.flowdeconstruct.model.FlowConnection;
 import com.sap.flowdeconstruct.model.FlowDiagram;
 import com.sap.flowdeconstruct.model.FlowNode;
+import com.sap.flowdeconstruct.model.TimelineEvent;
 import com.sap.flowdeconstruct.ui.dialogs.ConnectionDialog;
 import com.sap.flowdeconstruct.ui.dialogs.TextStyleDialog;
 
@@ -52,6 +53,20 @@ public class FlowCanvas extends JPanel implements MouseListener, MouseMotionList
     private FlowNode connectStartNode = null;
     private Point2D.Double connectMouseWorld = null;
     
+    // Timeline state
+    public enum Mode { FLOW_ONLY, TIMELINE_ONLY, BOTH }
+    private Mode mode = Mode.FLOW_ONLY;
+    private static final int TIMELINE_HEIGHT = 120;
+    private static final int TIMELINE_PADDING = 16;
+    private static final int TIMELINE_TRACK_HEIGHT = 6;
+    private static final int TIMELINE_EVENT_RADIUS = 7;
+    private static final Color TIMELINE_BG = new Color(0x24, 0x24, 0x24);
+    private static final Color TIMELINE_TRACK = new Color(0x55, 0x55, 0x55);
+    private static final Color TIMELINE_EVENT = new Color(0x5f, 0x9e, 0xa0);
+
+    // Interação com eventos da timeline
+    private TimelineEvent draggingEvent = null;
+
     public FlowCanvas() {
         setBackground(BACKGROUND_COLOR);
         setPreferredSize(new Dimension(2000, 1500)); // Large canvas for infinite feel
@@ -72,6 +87,18 @@ public class FlowCanvas extends JPanel implements MouseListener, MouseMotionList
                 requestFocusInWindow();
             }
         });
+    }
+
+    public void setMode(Mode m) {
+        if (m != null) {
+            this.mode = m;
+            revalidate();
+            repaint();
+        }
+    }
+
+    public Mode getMode() {
+        return mode;
     }
     
     public void setFlowDiagram(FlowDiagram diagram) {
@@ -165,16 +192,20 @@ public class FlowCanvas extends JPanel implements MouseListener, MouseMotionList
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
         
-        System.out.println("FlowCanvas.paintComponent: Called. FlowDiagram=" + 
-                          (flowDiagram != null ? "not null" : "null"));
+        if (mode == Mode.TIMELINE_ONLY || mode == Mode.BOTH) {
+            // timeline ocupa uma faixa fixa na parte inferior
+            paintTimelineBackground(g);
+        }
         
-        if (flowDiagram == null) {
-            System.out.println("FlowCanvas.paintComponent: No diagram, showing welcome screen");
-            paintWelcomeScreen(g);
+        if (mode == Mode.TIMELINE_ONLY) {
+            paintTimeline((Graphics2D) g);
             return;
         }
         
-        System.out.println("FlowCanvas.paintComponent: Drawing " + flowDiagram.getNodes().size() + " nodes");
+        if (flowDiagram == null) {
+            paintWelcomeScreen(g);
+            return;
+        }
         
         Graphics2D g2d = (Graphics2D) g.create();
         
@@ -195,8 +226,95 @@ public class FlowCanvas extends JPanel implements MouseListener, MouseMotionList
         drawNodes(g2d);
         
         g2d.dispose();
+        
+        if (mode == Mode.BOTH) {
+            paintTimeline((Graphics2D) g);
+        }
     }
-    
+
+    private Rectangle getTimelineBounds() {
+        int h = TIMELINE_HEIGHT;
+        Rectangle vr = getVisibleRect();
+        int y = vr.y + vr.height - h;
+        return new Rectangle(vr.x, y, vr.width, h);
+    }
+
+    private void paintTimelineBackground(Graphics g) {
+        Rectangle r = getTimelineBounds();
+        g.setColor(TIMELINE_BG);
+        g.fillRect(r.x, r.y, r.width, r.height);
+    }
+
+    private void paintTimeline(Graphics2D g2d) {
+        if (flowDiagram == null) return;
+        Rectangle r = getTimelineBounds();
+        int trackY = r.y + TIMELINE_PADDING + (TIMELINE_HEIGHT / 2) - (TIMELINE_TRACK_HEIGHT / 2);
+        int trackX = r.x + TIMELINE_PADDING;
+        int trackW = r.width - 2 * TIMELINE_PADDING;
+
+        // Track
+        g2d.setColor(TIMELINE_TRACK);
+        g2d.fillRoundRect(trackX, trackY, trackW, TIMELINE_TRACK_HEIGHT, TIMELINE_TRACK_HEIGHT, TIMELINE_TRACK_HEIGHT);
+
+        // Events
+        List<TimelineEvent> events = flowDiagram.getTimelineEvents();
+        for (TimelineEvent ev : events) {
+            int ex = trackX + (int) Math.round(ev.getPosition() * trackW);
+            int ey = trackY + TIMELINE_TRACK_HEIGHT / 2;
+            // point
+            g2d.setColor(TIMELINE_EVENT);
+            g2d.fillOval(ex - TIMELINE_EVENT_RADIUS, ey - TIMELINE_EVENT_RADIUS, TIMELINE_EVENT_RADIUS * 2, TIMELINE_EVENT_RADIUS * 2);
+            // label
+            g2d.setFont(MONO_FONT);
+            g2d.setColor(TEXT_COLOR);
+            String label = ev.getLabel();
+            int strW = g2d.getFontMetrics().stringWidth(label);
+            int lx = Math.max(trackX, Math.min(ex - strW / 2, trackX + trackW - strW));
+            int ly = ey - TIMELINE_EVENT_RADIUS - 6;
+            g2d.drawString(label, lx, ly);
+        }
+
+        // Hint
+        g2d.setFont(MONO_FONT.deriveFont(10f));
+        g2d.setColor(TEXT_COLOR.darker());
+        g2d.drawString("Clique na faixa para adicionar evento; arraste eventos para reordenar", trackX, trackY + TIMELINE_TRACK_HEIGHT + 18);
+    }
+
+    private TimelineEvent findTimelineEventAt(Point p) {
+        Rectangle r = getTimelineBounds();
+        int trackY = r.y + TIMELINE_PADDING + (TIMELINE_HEIGHT / 2) - (TIMELINE_TRACK_HEIGHT / 2);
+        int trackX = r.x + TIMELINE_PADDING;
+        int trackW = r.width - 2 * TIMELINE_PADDING;
+        int ey = trackY + TIMELINE_TRACK_HEIGHT / 2;
+        List<TimelineEvent> events = flowDiagram != null ? flowDiagram.getTimelineEvents() : new ArrayList<>();
+        for (TimelineEvent ev : events) {
+            int ex = trackX + (int) Math.round(ev.getPosition() * trackW);
+            int dx = p.x - ex;
+            int dy = p.y - ey;
+            if (dx * dx + dy * dy <= (TIMELINE_EVENT_RADIUS + 2) * (TIMELINE_EVENT_RADIUS + 2)) {
+                return ev;
+            }
+        }
+        return null;
+    }
+
+    private double positionFromPointOnTrack(Point p) {
+        Rectangle r = getTimelineBounds();
+        int trackX = r.x + TIMELINE_PADDING;
+        int trackW = r.width - 2 * TIMELINE_PADDING;
+        double pos = (p.x - trackX) / (double) trackW;
+        return Math.max(0.0, Math.min(1.0, pos));
+    }
+
+    private boolean isOnTimelineTrack(Point p) {
+        Rectangle r = getTimelineBounds();
+        int trackY = r.y + TIMELINE_PADDING + (TIMELINE_HEIGHT / 2) - (TIMELINE_TRACK_HEIGHT / 2);
+        int trackX = r.x + TIMELINE_PADDING;
+        int trackW = r.width - 2 * TIMELINE_PADDING;
+        Rectangle track = new Rectangle(trackX, trackY - 10, trackW, TIMELINE_TRACK_HEIGHT + 20);
+        return track.contains(p);
+    }
+
     private void paintWelcomeScreen(Graphics g) {
         Graphics2D g2d = (Graphics2D) g;
         g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
@@ -250,141 +368,137 @@ public class FlowCanvas extends JPanel implements MouseListener, MouseMotionList
             g2d.setStroke(oldStroke);
         }
     }
-    
+
+    // --- Added helpers for drawing and hit-testing connections ---
     private void drawConnection(Graphics2D g2d, FlowNode fromNode, FlowNode toNode, FlowConnection connection) {
-        Point2D.Double fromPoint = getAnchorPoint(fromNode, toNode);
-        Point2D.Double toPoint = getAnchorPoint(toNode, fromNode);
-        
-        boolean isSelected = (connection == selectedConnection);
-        // Draw main line with customizable color
-        Color baseLineColor = parseHexColor(connection.getLineColorHex(), CONNECTION_COLOR);
-        Color lineColor = isSelected ? SUBFLOW_INDICATOR_COLOR : baseLineColor;
+        // Determine anchor points on node borders towards each other
+        Point2D.Double toCenter = new Point2D.Double(toNode.getX() + toNode.getWidth() / 2.0, toNode.getY() + toNode.getHeight() / 2.0);
+        Point2D.Double fromCenter = new Point2D.Double(fromNode.getX() + fromNode.getWidth() / 2.0, fromNode.getY() + fromNode.getHeight() / 2.0);
+        Point2D.Double fromPt = anchorPointTowards(fromNode, toCenter.x, toCenter.y);
+        Point2D.Double toPt = anchorPointTowards(toNode, fromCenter.x, fromCenter.y);
+
+        // Colors and stroke
+        Color lineColor = parseHexColor(connection.getLineColorHex(), CONNECTION_COLOR);
+        Color arrowColor = parseHexColor(connection.getArrowColorHex(), lineColor);
+        Stroke old = g2d.getStroke();
+        g2d.setStroke(new BasicStroke(2f));
         g2d.setColor(lineColor);
-        g2d.setStroke(new BasicStroke(isSelected ? 3f : 2f));
-        g2d.drawLine((int) fromPoint.x, (int) fromPoint.y, (int) toPoint.x, (int) toPoint.y);
-        
-        // Draw arrowhead(s) according to direction style with customizable color
-        Color baseArrowColor = parseHexColor(connection.getArrowColorHex(), baseLineColor);
-        Color arrowColor = isSelected ? SUBFLOW_INDICATOR_COLOR : baseArrowColor;
+        g2d.drawLine((int) fromPt.x, (int) fromPt.y, (int) toPt.x, (int) toPt.y);
+
+        // Arrowheads according to direction style
+        g2d.setColor(arrowColor);
         FlowConnection.DirectionStyle ds = connection.getDirectionStyle();
-        if (ds != null) {
-            switch (ds) {
-                case FROM_TO:
-                    g2d.setColor(arrowColor);
-                    drawArrowHead(g2d, fromPoint.x, fromPoint.y, toPoint.x, toPoint.y);
-                    break;
-                case TO_FROM:
-                    g2d.setColor(arrowColor);
-                    drawArrowHead(g2d, toPoint.x, toPoint.y, fromPoint.x, fromPoint.y);
-                    break;
-                case BIDIRECTIONAL:
-                    g2d.setColor(arrowColor);
-                    drawArrowHead(g2d, fromPoint.x, fromPoint.y, toPoint.x, toPoint.y);
-                    drawArrowHead(g2d, toPoint.x, toPoint.y, fromPoint.x, fromPoint.y);
-                    break;
-                case NONE:
-                    // no arrowheads
-                    break;
-            }
+        if (ds == FlowConnection.DirectionStyle.FROM_TO) {
+            drawArrowHead(g2d, fromPt.x, fromPt.y, toPt.x, toPt.y);
+        } else if (ds == FlowConnection.DirectionStyle.TO_FROM) {
+            drawArrowHead(g2d, toPt.x, toPt.y, fromPt.x, fromPt.y);
+        } else if (ds == FlowConnection.DirectionStyle.BIDIRECTIONAL) {
+            drawArrowHead(g2d, fromPt.x, fromPt.y, toPt.x, toPt.y);
+            drawArrowHead(g2d, toPt.x, toPt.y, fromPt.x, fromPt.y);
         }
-        
-        // Draw protocol label if exists
-        if (connection.getProtocol() != null && !connection.getProtocol().trim().isEmpty()) {
-            int labelX = (int) ((fromPoint.x + toPoint.x) / 2);
-            int labelY = (int) ((fromPoint.y + toPoint.y) / 2) - 5;
-            drawProtocolLabel(g2d, connection.getProtocol(), labelX, labelY);
-        }
-    }
-    
-    private void drawArrowHead(Graphics2D g2d, double fromX, double fromY, double toX, double toY) {
-        double dx = toX - fromX;
-        double dy = toY - fromY;
-        double angle = Math.atan2(dy, dx);
-        int size = 8;
-        
-        int x1 = (int) (toX - size * Math.cos(angle - Math.PI / 6));
-        int y1 = (int) (toY - size * Math.sin(angle - Math.PI / 6));
-        int x2 = (int) (toX - size * Math.cos(angle + Math.PI / 6));
-        int y2 = (int) (toY - size * Math.sin(angle + Math.PI / 6));
-        
-        Polygon arrowHead = new Polygon();
-        arrowHead.addPoint((int) toX, (int) toY);
-        arrowHead.addPoint(x1, y1);
-        arrowHead.addPoint(x2, y2);
-        
-        g2d.fillPolygon(arrowHead);
+        g2d.setStroke(old);
     }
 
-    private Point2D.Double getAnchorPoint(FlowNode node, FlowNode other) {
-        double x = node.getX();
-        double y = node.getY();
-        double otherX = other.getX();
-        
-        // If the other node is to the right, use the right edge, otherwise use the left edge
-        double anchorX = otherX > x ? x + node.getWidth() : x;
-        double anchorY = y + node.getHeight() / 2.0;
-        
-        return new Point2D.Double(anchorX, anchorY);
-    }
-
-    private void drawProtocolLabel(Graphics2D g2d, String text, int x, int y) {
-        g2d.setColor(TEXT_COLOR);
-        g2d.setFont(MONO_FONT);
-        
-        FontMetrics fm = g2d.getFontMetrics();
-        int width = fm.stringWidth(text) + 8;
-        int height = fm.getHeight();
-        
-        // Background
-        g2d.setColor(new Color(0x3a, 0x3a, 0x3a));
-        g2d.fillRoundRect(x - width / 2, y - height + 3, width, height, 8, 8);
-        
-        // Border
-        g2d.setColor(new Color(0x5f, 0x9e, 0xa0));
-        g2d.drawRoundRect(x - width / 2, y - height + 3, width, height, 8, 8);
-        
-        // Text
-        g2d.setColor(TEXT_COLOR);
-        g2d.drawString(text, x - width / 2 + 4, y);
-    }
-
-    private double distancePointToSegment(Point2D.Double p, Point2D.Double a, Point2D.Double b) {
-        double abx = b.x - a.x;
-        double aby = b.y - a.y;
-        double apx = p.x - a.x;
-        double apy = p.y - a.y;
-        double ab2 = abx * abx + aby * aby;
-        double ap_ab = apx * abx + apy * aby;
-        double t = Math.max(0, Math.min(1, ap_ab / ab2));
-        double closestX = a.x + abx * t;
-        double closestY = a.y + aby * t;
-        double dx = p.x - closestX;
-        double dy = p.y - closestY;
-        return Math.sqrt(dx * dx + dy * dy);
+    private void drawArrowHead(Graphics2D g2d, double x1, double y1, double x2, double y2) {
+        // Draw a filled triangle arrow head at (x2,y2), pointing from (x1,y1) -> (x2,y2)
+        double angle = Math.atan2(y2 - y1, x2 - x1);
+        int size = 10;
+        int xA = (int) x2;
+        int yA = (int) y2;
+        int xB = (int) (x2 - size * Math.cos(angle - Math.PI / 6));
+        int yB = (int) (y2 - size * Math.sin(angle - Math.PI / 6));
+        int xC = (int) (x2 - size * Math.cos(angle + Math.PI / 6));
+        int yC = (int) (y2 - size * Math.sin(angle + Math.PI / 6));
+        g2d.fillPolygon(new int[]{xA, xB, xC}, new int[]{yA, yB, yC}, 3);
     }
 
     private FlowConnection findConnectionAt(Point2D.Double worldPos) {
         if (flowDiagram == null) return null;
-        
+        double threshold = 6.0; // pixels in world space
+        FlowConnection best = null;
+        double bestDist = Double.MAX_VALUE;
         for (FlowConnection connection : flowDiagram.getConnections()) {
             FlowNode fromNode = flowDiagram.findNodeById(connection.getFromNodeId());
             FlowNode toNode = flowDiagram.findNodeById(connection.getToNodeId());
             if (fromNode == null || toNode == null) continue;
-            
-            Point2D.Double fromPoint = getAnchorPoint(fromNode, toNode);
-            Point2D.Double toPoint = getAnchorPoint(toNode, fromNode);
-            
-            double distance = distancePointToSegment(worldPos, fromPoint, toPoint);
-            if (distance < 6.0) {
-                return connection;
+            Point2D.Double toCenter = new Point2D.Double(toNode.getX() + toNode.getWidth() / 2.0, toNode.getY() + toNode.getHeight() / 2.0);
+            Point2D.Double fromCenter = new Point2D.Double(fromNode.getX() + fromNode.getWidth() / 2.0, fromNode.getY() + fromNode.getHeight() / 2.0);
+            Point2D.Double fromPt = anchorPointTowards(fromNode, toCenter.x, toCenter.y);
+            Point2D.Double toPt = anchorPointTowards(toNode, fromCenter.x, fromCenter.y);
+
+            double d = distancePointToSegment(worldPos.x, worldPos.y, fromPt.x, fromPt.y, toPt.x, toPt.y);
+            if (d < threshold && d < bestDist) {
+                bestDist = d;
+                best = connection;
             }
         }
-        
-        return null;
+        return best;
     }
-    
-    @Override
+
+    private Point2D.Double anchorPointTowards(FlowNode node, double tx, double ty) {
+        int x = (int) node.getX();
+        int y = (int) node.getY();
+        int w = node.getWidth();
+        int h = node.getHeight();
+        double cx = x + w / 2.0;
+        double cy = y + h / 2.0;
+        double dx = tx - cx;
+        double dy = ty - cy;
+        if (Math.abs(dx) > Math.abs(dy)) {
+            return new Point2D.Double(dx >= 0 ? x + w : x, cy);
+        } else {
+            return new Point2D.Double(cx, dy >= 0 ? y + h : y);
+        }
+    }
+
+    private double distancePointToSegment(double px, double py, double x1, double y1, double x2, double y2) {
+        double dx = x2 - x1;
+        double dy = y2 - y1;
+        if (dx == 0 && dy == 0) {
+            // It's a point not a segment.
+            dx = px - x1;
+            dy = py - y1;
+            return Math.sqrt(dx * dx + dy * dy);
+        }
+        double t = ((px - x1) * dx + (py - y1) * dy) / (dx * dx + dy * dy);
+        t = Math.max(0, Math.min(1, t));
+        double projX = x1 + t * dx;
+        double projY = y1 + t * dy;
+        double ddx = px - projX;
+        double ddy = py - projY;
+        return Math.sqrt(ddx * ddx + ddy * ddy);
+    }
+@Override
     public void mouseClicked(MouseEvent e) {
+        // Timeline interactions have priority when in timeline region
+        if (mode != Mode.FLOW_ONLY) {
+            if (isOnTimelineTrack(e.getPoint())) {
+                TimelineEvent hit = (flowDiagram != null) ? findTimelineEventAt(e.getPoint()) : null;
+
+                // Renomear evento com duplo clique (botão esquerdo)
+                if (hit != null && SwingUtilities.isLeftMouseButton(e) && e.getClickCount() == 2) {
+                    promptRenameTimelineEvent(hit);
+                    return;
+                }
+
+                // Renomear evento com botão direito
+                if (hit != null && SwingUtilities.isRightMouseButton(e)) {
+                    promptRenameTimelineEvent(hit);
+                    return;
+                }
+
+                // Criar novo evento ao clicar na faixa (botão esquerdo) e já perguntar o nome
+                if (hit == null && flowDiagram != null && SwingUtilities.isLeftMouseButton(e)) {
+                    double pos = positionFromPointOnTrack(e.getPoint());
+                    TimelineEvent ev = flowDiagram.addTimelineEvent("Evento", pos);
+                    // Prompt imediato para renomear após criação
+                    promptRenameTimelineEvent(ev);
+                    repaint();
+                    return;
+                }
+            }
+        }
+        // existing behavior below
         requestFocusInWindow();
         if (flowDiagram == null) return;
         
@@ -446,6 +560,16 @@ public class FlowCanvas extends JPanel implements MouseListener, MouseMotionList
         requestFocusInWindow();
         if (flowDiagram == null) return;
         
+        // Timeline drag start has priority
+        if (mode != Mode.FLOW_ONLY && isOnTimelineTrack(e.getPoint()) && SwingUtilities.isLeftMouseButton(e)) {
+            TimelineEvent ev = findTimelineEventAt(e.getPoint());
+            if (ev != null) {
+                draggingEvent = ev;
+                lastMousePos = e.getPoint();
+                return;
+            }
+        }
+        
         // Show node context menu first if applicable
         if (maybeShowNodePopup(e)) return;
         // Show connection context menu if applicable
@@ -466,6 +590,15 @@ public class FlowCanvas extends JPanel implements MouseListener, MouseMotionList
     @Override
     public void mouseDragged(MouseEvent e) {
         if (flowDiagram == null) return;
+        
+        // Dragging timeline event
+        if (draggingEvent != null) {
+            double pos = positionFromPointOnTrack(e.getPoint());
+            flowDiagram.updateTimelineEvent(draggingEvent, null, pos, false);
+            repaint();
+            lastMousePos = e.getPoint();
+            return;
+        }
         
         if (dragging && draggingNode != null) {
             Point2D.Double worldPos = screenToWorld(e.getPoint());
@@ -498,6 +631,14 @@ public class FlowCanvas extends JPanel implements MouseListener, MouseMotionList
     // In mouseReleased
     @Override
     public void mouseReleased(MouseEvent e) {
+        // Finish timeline drag if any
+        if (draggingEvent != null) {
+            draggingEvent = null;
+            dragging = false;
+            draggingNode = null;
+            return;
+        }
+        
         // Show node context menu first if applicable
         if (maybeShowNodePopup(e)) {
             dragging = false;
@@ -1244,4 +1385,17 @@ private Color chooseColor(String title, Color initial) {
     Window owner = SwingUtilities.getWindowAncestor(this);
     return JColorChooser.showDialog(owner != null ? owner : this, title, initial);
 }
+
+    private void promptRenameTimelineEvent(TimelineEvent ev) {
+        if (ev == null || flowDiagram == null) return;
+        String current = ev.getLabel();
+        String input = JOptionPane.showInputDialog(this, "Nome do evento:", current != null ? current : "");
+        if (input != null) {
+            String newLabel = input.trim();
+            if (!newLabel.isEmpty() && !newLabel.equals(current)) {
+                flowDiagram.updateTimelineEvent(ev, newLabel, null, false);
+                repaint();
+            }
+        }
+    }
 }

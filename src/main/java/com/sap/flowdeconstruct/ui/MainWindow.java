@@ -195,6 +195,27 @@ public class MainWindow extends JFrame implements KeyListener {
         // Separator
         toolbar.add(createSeparator());
         
+        // Timeline Mode selector
+        JLabel modeLabel = new JLabel("Mode:");
+        modeLabel.setForeground(TEXT_COLOR);
+        modeLabel.setFont(MONO_FONT.deriveFont(10f));
+        toolbar.add(modeLabel);
+        JComboBox<String> modeCombo = new JComboBox<>(new String[]{"Flow", "Timeline", "Both"});
+        modeCombo.setFont(MONO_FONT.deriveFont(10f));
+        modeCombo.setBackground(new Color(0x3a, 0x3a, 0x3a));
+        modeCombo.setForeground(TEXT_COLOR);
+        modeCombo.addActionListener(e -> {
+            int idx = modeCombo.getSelectedIndex();
+            FlowCanvas.Mode m = FlowCanvas.Mode.FLOW_ONLY;
+            if (idx == 1) m = FlowCanvas.Mode.TIMELINE_ONLY;
+            else if (idx == 2) m = FlowCanvas.Mode.BOTH;
+            if (canvas != null) canvas.setMode(m);
+        });
+        toolbar.add(modeCombo);
+        
+        // Separator
+        toolbar.add(createSeparator());
+        
         // Export button
         JButton exportBtn = createToolbarButton("Export", "Export flow (Ctrl+E)", e -> exportFlow());
         toolbar.add(exportBtn);
@@ -584,106 +605,59 @@ public class MainWindow extends JFrame implements KeyListener {
     // Keyboard event handling (invocado pelo FlowCanvas via parent KeyListener)
     @Override
     public void keyPressed(KeyEvent e) {
-        if (currentFlow == null) {
-            return;
-        }
-    
+        if (canvas != null && canvas.isEditingNode()) return; // Let canvas handle text editing
+        
         int keyCode = e.getKeyCode();
-        boolean ctrl = e.isControlDown();
-        boolean shift = e.isShiftDown();
-    
-        // Ajuda (Shift + / -> ?) e F1
-        if ((keyCode == KeyEvent.VK_SLASH && shift) || keyCode == KeyEvent.VK_F1 || keyCode == KeyEvent.VK_HELP) {
-            toggleHelpOverlay();
-            return;
-        }
-        if (helpVisible) {
-            if (keyCode == KeyEvent.VK_ESCAPE) hideHelpOverlay();
-            return; // não processa outras teclas quando ajuda está visível
-        }
-    
+        boolean ctrl = (e.getModifiersEx() & KeyEvent.CTRL_DOWN_MASK) != 0;
+        boolean shift = (e.getModifiersEx() & KeyEvent.SHIFT_DOWN_MASK) != 0;
+        
         switch (keyCode) {
             case KeyEvent.VK_TAB:
                 if (shift) {
+                    // Create isolated node (Shift+Tab)
                     if (canvas != null) canvas.createIsolatedNode();
                 } else {
                     createNode();
                 }
-                e.consume();
                 break;
-    
             case KeyEvent.VK_ENTER:
-                if (canvas != null && canvas.isEditingNode()) {
-                    // Deixe o canvas finalizar a edição via handleKeyTyped('\n')
-                    canvas.handleKeyTyped('\n');
-                } else if (ctrl) {
+                if (ctrl) {
                     drillDownToSubflow();
-                } else if (currentFlow.getSelectedNode() != null && !canvas.isEditingNode()) {
-                    // Enter inicia edição (sem Ctrl)
-                    startEditingSelectedNode();
-                }
-                break;
-    
-            case KeyEvent.VK_N:
-                if (ctrl) {
-                    addNoteToSelectedNode();
-                }
-                break;
-    
-            case KeyEvent.VK_E:
-                if (ctrl) {
-                    exportFlow();
-                } else if (currentFlow.getSelectedNode() != null && canvas != null && !canvas.isEditingNode()) {
-                    startEditingSelectedNode();
-                }
-                break;
-    
-            case KeyEvent.VK_G:
-                if (ctrl) {
-                    openTranscriptionPromptDialog();
-                }
-                break;
-    
-            case KeyEvent.VK_DELETE:
-                if (canvas != null && !canvas.isEditingNode() && currentFlow.getSelectedNode() != null) {
-                    currentFlow.removeNode(currentFlow.getSelectedNode());
-                    canvas.repaint();
-                }
-                break;
-    
-            case KeyEvent.VK_ESCAPE:
-                if (canvas != null && canvas.isEditingNode()) {
-                    canvas.handleEscapeKey();
                 } else {
-                    handleEscape();
+                    startEditingSelectedNode();
                 }
                 break;
-    
-            case KeyEvent.VK_M:
-                if (ctrl) {
-                    moveMode = !moveMode;
-                }
+            case KeyEvent.VK_ESCAPE:
+                handleEscape();
                 break;
-    
-            case KeyEvent.VK_UP:
-            case KeyEvent.VK_DOWN:
+            case KeyEvent.VK_E:
+                if (ctrl) exportFlow();
+                break;
+            case KeyEvent.VK_G:
+                if (ctrl) openTranscriptionPromptDialog();
+                break;
+            case KeyEvent.VK_SLASH:
+                if (shift) toggleHelpOverlay(); // Shift+/
+                break;
+            case KeyEvent.VK_F1:
+                toggleHelpOverlay();
+                break;
             case KeyEvent.VK_LEFT:
             case KeyEvent.VK_RIGHT:
-                if (moveMode && shift && currentFlow.getSelectedNode() != null && canvas != null && !canvas.isEditingNode()) {
-                    int dx = 0, dy = 0;
-                    switch (keyCode) {
-                        case KeyEvent.VK_UP: dy = -10; break;
-                        case KeyEvent.VK_DOWN: dy = 10; break;
-                        case KeyEvent.VK_LEFT: dx = -10; break;
-                        case KeyEvent.VK_RIGHT: dx = 10; break;
-                    }
-                    moveSelectedNode(dx, dy);
-                } else {
-                    navigateNodes(keyCode);
+            case KeyEvent.VK_UP:
+            case KeyEvent.VK_DOWN:
+                navigateNodes(keyCode);
+                break;
+            case KeyEvent.VK_M: // Ctrl+M cycles mode: Flow -> Timeline -> Both -> Flow
+                if (ctrl) {
+                    FlowCanvas.Mode m = canvas != null ? canvas.getMode() : FlowCanvas.Mode.FLOW_ONLY;
+                    FlowCanvas.Mode next = (m == FlowCanvas.Mode.FLOW_ONLY) ? FlowCanvas.Mode.TIMELINE_ONLY :
+                            (m == FlowCanvas.Mode.TIMELINE_ONLY) ? FlowCanvas.Mode.BOTH : FlowCanvas.Mode.FLOW_ONLY;
+                    if (canvas != null) canvas.setMode(next);
                 }
                 break;
             default:
-                // outros atalhos não tratados aqui
+                // Não delegar para o canvas para evitar recursão; teclas não mapeadas são ignoradas aqui
                 break;
         }
     }

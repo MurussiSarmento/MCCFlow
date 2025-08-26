@@ -17,6 +17,9 @@ public class FlowDiagram {
     private Date createdAt;
     private Date modifiedAt;
     
+    // Linha do tempo: eventos ordenados logicamente pelo campo "position" (0..1)
+    private List<TimelineEvent> timelineEvents;
+    
     // UI state (not persisted)
     @JsonIgnore
     private FlowNode selectedNode;
@@ -30,6 +33,7 @@ public class FlowDiagram {
         this.name = "Main Flow";
         this.nodes = new ArrayList<>();
         this.connections = new ArrayList<>();
+        this.timelineEvents = new ArrayList<>();
         this.createdAt = new Date();
         this.modifiedAt = new Date();
         this.listeners = new ArrayList<>();
@@ -90,11 +94,72 @@ public class FlowDiagram {
     public List<FlowConnection> getConnections() {
         return new ArrayList<>(connections); // Return copy to prevent external modification
     }
-    
+
     public void setConnections(List<FlowConnection> connections) {
         this.connections = new ArrayList<>(connections);
         updateModifiedTime();
         notifyListeners("connections", null, this.connections);
+    }
+
+    // ---------- Timeline (Linha do tempo) ----------
+    public List<TimelineEvent> getTimelineEvents() {
+        // retorna cópia ordenada por position
+        List<TimelineEvent> copy = new ArrayList<>(timelineEvents);
+        copy.sort(Comparator.comparingDouble(TimelineEvent::getPosition));
+        return copy;
+    }
+
+    public void setTimelineEvents(List<TimelineEvent> events) {
+        this.timelineEvents = new ArrayList<>(events != null ? events : Collections.emptyList());
+        normalizeTimelinePositions();
+        updateModifiedTime();
+        notifyListeners("timelineChanged", null, getTimelineEvents());
+    }
+
+    public TimelineEvent addTimelineEvent(String label, double position) {
+        TimelineEvent e = new TimelineEvent(label, clamp01(position));
+        this.timelineEvents.add(e);
+        normalizeTimelinePositions();
+        updateModifiedTime();
+        notifyListeners("timelineEventAdded", null, e);
+        return e;
+    }
+
+    public void updateTimelineEvent(TimelineEvent e, String newLabel, Double newPosition, boolean normalizeAfter) {
+        if (e == null) return;
+        Object snapshot = new TimelineEvent(e.getLabel(), e.getPosition());
+        if (newLabel != null) e.setLabel(newLabel);
+        if (newPosition != null) e.setPosition(clamp01(newPosition));
+        if (normalizeAfter) normalizeTimelinePositions();
+        updateModifiedTime();
+        notifyListeners("timelineEventUpdated", snapshot, e);
+    }
+
+    public void removeTimelineEvent(TimelineEvent event) {
+        if (event == null) return;
+        if (this.timelineEvents.remove(event)) {
+            updateModifiedTime();
+            notifyListeners("timelineEventRemoved", event, null);
+        }
+    }
+
+    public void normalizeTimelinePositions() {
+        if (timelineEvents == null || timelineEvents.isEmpty()) return;
+        // Ordena e reatribui posições igualmente espaçadas entre 0..1
+        timelineEvents.sort(Comparator.comparingDouble(TimelineEvent::getPosition));
+        int n = timelineEvents.size();
+        if (n == 1) {
+            timelineEvents.get(0).setPosition(0.5);
+            return;
+        }
+        for (int i = 0; i < n; i++) {
+            double p = (double) i / (double) (n - 1);
+            timelineEvents.get(i).setPosition(p);
+        }
+    }
+
+    private double clamp01(double v) {
+        return Math.max(0.0, Math.min(1.0, v));
     }
     
     public Date getCreatedAt() {
@@ -285,6 +350,7 @@ public class FlowDiagram {
     public void clear() {
         nodes.clear();
         connections.clear();
+        if (timelineEvents != null) timelineEvents.clear();
         setSelectedNode(null);
         updateModifiedTime();
         notifyListeners("cleared", null, null);
@@ -302,17 +368,12 @@ public class FlowDiagram {
         listeners.add(listener);
     }
     
-    public void removeStateListener(DiagramStateListener listener) {
-        if (listeners != null) {
-            listeners.remove(listener);
-        }
-    }
-    
     private void notifyListeners(String event, Object oldValue, Object newValue) {
-        if (listeners != null) {
-            for (DiagramStateListener listener : listeners) {
-                listener.onDiagramStateChanged(this, event, oldValue, newValue);
-            }
+        if (listeners == null) return;
+        for (DiagramStateListener l : new ArrayList<>(listeners)) {
+            try {
+                l.onDiagramStateChanged(this, event, oldValue, newValue);
+            } catch (Exception ignored) {}
         }
     }
     
