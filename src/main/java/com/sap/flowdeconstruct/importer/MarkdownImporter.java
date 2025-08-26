@@ -47,7 +47,8 @@ public class MarkdownImporter {
                         String text = normalized.substring(idEnd + 1).trim();
                         // Accept any valid ID format, not just UUID
                         if (id.length() > 0 && !id.contains("[") && !id.contains("]")) {
-                            FlowNode flowNode = new FlowNode(text);
+                            String unescapedText = unescapeMarkdown(text);
+                            FlowNode flowNode = new FlowNode(unescapedText);
                             flowNode.setId(id);
                             currentFlow.addNode(flowNode);
                             currentNode = flowNode;
@@ -130,7 +131,7 @@ public class MarkdownImporter {
                         noteText = noteText.substring(6).trim();
                     }
                     // Unescape markdown to match exporter
-                    String unescaped = noteText.replace("<br>", "\n").replace("\\*", "*").replace("\\_", "_");
+                    String unescaped = unescapeMarkdown(noteText);
                     currentNode.setNotes(unescaped.trim());
                 }
             } else {
@@ -207,7 +208,7 @@ public class MarkdownImporter {
                                     // Protocol
                                     if (protocol != null) {
                                         // Unescape markdown special characters similar to exporter
-                                        String unescaped = protocol.replace("<br>", "\n").replace("\\*", "*").replace("\\_", "_");
+                                        String unescaped = unescapeMarkdown(protocol);
                                         conn.setProtocol(unescaped);
                                     }
                                 }
@@ -302,5 +303,11 @@ public class MarkdownImporter {
         if (l.equalsIgnoreCase("conexoes")) return true;
         if (l.equalsIgnoreCase("conexões")) return true;
         return false;
+    }
+
+    // Centraliza a lógica de unescape para alinhar com o escape do exporter
+    private String unescapeMarkdown(String s) {
+        if (s == null) return null;
+        return s.replace("<br>", "\n").replace("\\*", "*").replace("\\_", "_");
     }
 }
