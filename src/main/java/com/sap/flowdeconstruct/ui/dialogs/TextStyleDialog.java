@@ -1,6 +1,8 @@
 package com.sap.flowdeconstruct.ui.dialogs;
 
 import javax.swing.*;
+import javax.swing.event.ChangeEvent;
+import javax.swing.event.ChangeListener;
 import java.awt.*;
 import java.awt.event.KeyEvent;
 
@@ -20,6 +22,9 @@ public class TextStyleDialog extends JDialog {
     private final JSpinner sizeSpinner;
     private final JCheckBox boldCheck;
     private final JCheckBox italicCheck;
+
+    // Preview components
+    private JLabel previewLabel;
 
     public TextStyleDialog(Frame owner, Color initialColor, String initialFamily, int initialSize, int initialStyle) {
         super(owner, "Estilo do texto", true);
@@ -111,6 +116,24 @@ public class TextStyleDialog extends JDialog {
         styleRow.add(Box.createHorizontalStrut(8));
         styleRow.add(italicCheck);
 
+        // Preview section
+        JPanel previewRow = new JPanel(new BorderLayout());
+        previewRow.setBackground(BACKGROUND_COLOR);
+        JLabel previewTitle = new JLabel("Pré-visualização:");
+        previewTitle.setForeground(TEXT_COLOR);
+        previewTitle.setFont(MONO_FONT);
+        JPanel previewPanel = new JPanel(new BorderLayout());
+        previewPanel.setBackground(PANEL_COLOR);
+        previewPanel.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(ACCENT_COLOR.darker(), 1),
+                BorderFactory.createEmptyBorder(12, 12, 12, 12)
+        ));
+        previewLabel = new JLabel("Texto de exemplo: Aa Bb Cc 0123 !?");
+        previewLabel.setForeground(selectedColor);
+        previewPanel.add(previewLabel, BorderLayout.CENTER);
+        previewRow.add(previewTitle, BorderLayout.NORTH);
+        previewRow.add(previewPanel, BorderLayout.CENTER);
+
         // Buttons
         JPanel buttons = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         buttons.setBackground(BACKGROUND_COLOR);
@@ -129,6 +152,8 @@ public class TextStyleDialog extends JDialog {
         content.add(familyRow);
         content.add(Box.createVerticalStrut(8));
         content.add(styleRow);
+        content.add(Box.createVerticalStrut(12));
+        content.add(previewRow);
 
         JPanel root = new JPanel(new BorderLayout());
         root.setBackground(BACKGROUND_COLOR);
@@ -137,13 +162,24 @@ public class TextStyleDialog extends JDialog {
         root.add(buttons, BorderLayout.SOUTH);
         setContentPane(root);
         pack();
-        setSize(520, Math.max(260, getHeight()));
+        setSize(560, Math.max(360, getHeight()));
         setLocationRelativeTo(getOwner());
 
         // ESC and Enter shortcuts
         getRootPane().registerKeyboardAction(e -> { confirmed = false; dispose(); },
                 KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), JComponent.WHEN_IN_FOCUSED_WINDOW);
         getRootPane().setDefaultButton(ok);
+
+        // Listeners to update preview live
+        familyCombo.addActionListener(e -> updatePreview());
+        sizeSpinner.addChangeListener(new ChangeListener() {
+            @Override public void stateChanged(ChangeEvent e) { updatePreview(); }
+        });
+        boldCheck.addActionListener(e -> updatePreview());
+        italicCheck.addActionListener(e -> updatePreview());
+
+        // Initial preview
+        updatePreview();
     }
 
     private void chooseColor() {
@@ -152,6 +188,26 @@ public class TextStyleDialog extends JDialog {
             selectedColor = c;
             colorPreview.setBackground(c);
             colorPreview.repaint();
+            updatePreview();
+        }
+    }
+
+    private void updatePreview() {
+        try {
+            String fam = (String) familyCombo.getSelectedItem();
+            int sz = (int) sizeSpinner.getValue();
+            int style = Font.PLAIN;
+            if (boldCheck.isSelected()) style |= Font.BOLD;
+            if (italicCheck.isSelected()) style |= Font.ITALIC;
+            Font f = new Font(fam != null && !fam.trim().isEmpty() ? fam : Font.MONOSPACED, style, Math.max(6, Math.min(96, sz)));
+            previewLabel.setFont(f);
+            previewLabel.setForeground(selectedColor != null ? selectedColor : TEXT_COLOR);
+            previewLabel.revalidate();
+            previewLabel.repaint();
+        } catch (Exception ignored) {
+            // In case of invalid font, fallback silently
+            previewLabel.setFont(MONO_FONT);
+            previewLabel.setForeground(selectedColor != null ? selectedColor : TEXT_COLOR);
         }
     }
 
