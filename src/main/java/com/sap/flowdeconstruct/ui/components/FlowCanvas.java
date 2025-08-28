@@ -6,6 +6,7 @@ import com.sap.flowdeconstruct.model.FlowNode;
 import com.sap.flowdeconstruct.model.TimelineEvent;
 import com.sap.flowdeconstruct.ui.dialogs.ConnectionDialog;
 import com.sap.flowdeconstruct.ui.dialogs.TextStyleDialog;
+import com.sap.flowdeconstruct.i18n.I18n;
 
 import javax.swing.*;
 import java.awt.*;
@@ -38,7 +39,9 @@ public class FlowCanvas extends JPanel implements MouseListener, MouseMotionList
     private static final int NODE_SPACING_X = 160;
     private static final int NODE_SPACING_Y = 80;
     private static final int CANVAS_MARGIN = 50;
-    private static final String DEFAULT_NODE_TEXT = "New Node";
+    private static String getDefaultNodeText() {
+        return I18n.t("canvas.node.default");
+    }
     
     private FlowDiagram flowDiagram;
     private FlowNode editingNode;
@@ -281,7 +284,7 @@ public class FlowCanvas extends JPanel implements MouseListener, MouseMotionList
         // Hint
         g2d.setFont(MONO_FONT.deriveFont(10f));
         g2d.setColor(TEXT_COLOR.darker());
-        g2d.drawString("Clique na faixa para adicionar evento; arraste eventos para ordenar por data", trackX, trackY + TIMELINE_TRACK_HEIGHT + 18);
+        g2d.drawString(I18n.t("canvas.timeline.hint"), trackX, trackY + TIMELINE_TRACK_HEIGHT + 18);
     }
 
     private TimelineEvent findTimelineEventAt(Point p) {
@@ -326,7 +329,7 @@ public class FlowCanvas extends JPanel implements MouseListener, MouseMotionList
         g2d.setColor(TEXT_COLOR.darker());
         g2d.setFont(MONO_FONT.deriveFont(16f));
         
-        String message = "Press Tab to create your first node";
+        String message = I18n.t("canvas.welcome.hint");
         FontMetrics fm = g2d.getFontMetrics();
         int x = (getWidth() - fm.stringWidth(message)) / 2;
         int y = getHeight() / 2;
@@ -494,7 +497,7 @@ public class FlowCanvas extends JPanel implements MouseListener, MouseMotionList
                 // Criar novo evento ao clicar na faixa (botão esquerdo) e já perguntar o nome/data
                 if (hit == null && flowDiagram != null && SwingUtilities.isLeftMouseButton(e)) {
                     double pos = positionFromPointOnTrack(e.getPoint());
-                    TimelineEvent ev = flowDiagram.addTimelineEvent("Evento", pos);
+                    TimelineEvent ev = flowDiagram.addTimelineEvent(I18n.t("canvas.timeline.event.default"), pos);
                     // Definir timestamp inicial com base na posição relativa entre vizinhos
                     Date ts = computeTimestampForPosition(pos, ev);
                     flowDiagram.updateTimelineEvent(ev, null, null, ts, true);
@@ -816,7 +819,7 @@ public class FlowCanvas extends JPanel implements MouseListener, MouseMotionList
         finishEditingNode(); // Finish any current editing
         editingNode = node;
         String currentText = node.getText();
-        editingText = DEFAULT_NODE_TEXT.equals(currentText) ? "" : currentText;
+        editingText = getDefaultNodeText().equals(currentText) ? "" : currentText;
         repaint();
     }
 
@@ -837,7 +840,7 @@ public class FlowCanvas extends JPanel implements MouseListener, MouseMotionList
         
         if (selectedNode != null) {
             // Create new node and connect to selected node
-            newNode = flowDiagram.addNode(DEFAULT_NODE_TEXT, 
+            newNode = flowDiagram.addNode(getDefaultNodeText(), 
                 (int)selectedNode.getX() + NODE_SPACING_X,
                 (int)selectedNode.getY());
             flowDiagram.addConnection(selectedNode, newNode);
@@ -845,7 +848,7 @@ public class FlowCanvas extends JPanel implements MouseListener, MouseMotionList
             // Create first node or new isolated node with a sensible position
             List<FlowNode> nodes = flowDiagram.getNodes();
             if (nodes.isEmpty()) {
-                newNode = flowDiagram.addNode(DEFAULT_NODE_TEXT, CANVAS_MARGIN, CANVAS_MARGIN);
+                newNode = flowDiagram.addNode(getDefaultNodeText(), CANVAS_MARGIN, CANVAS_MARGIN);
             } else {
                 int maxX = Integer.MIN_VALUE;
                 int minY = Integer.MAX_VALUE;
@@ -853,7 +856,7 @@ public class FlowCanvas extends JPanel implements MouseListener, MouseMotionList
                     maxX = Math.max(maxX, (int) n.getX());
                     minY = Math.min(minY, (int) n.getY());
                 }
-                newNode = flowDiagram.addNode(DEFAULT_NODE_TEXT, maxX + NODE_SPACING_X, minY);
+                newNode = flowDiagram.addNode(getDefaultNodeText(), maxX + NODE_SPACING_X, minY);
             }
         }
         
@@ -870,9 +873,9 @@ public class FlowCanvas extends JPanel implements MouseListener, MouseMotionList
 
         List<FlowNode> nodes = flowDiagram.getNodes();
         if (nodes.isEmpty()) {
-            newNode = flowDiagram.addNode(DEFAULT_NODE_TEXT, CANVAS_MARGIN, CANVAS_MARGIN);
+            newNode = flowDiagram.addNode(getDefaultNodeText(), CANVAS_MARGIN, CANVAS_MARGIN);
         } else if (selectedNode != null) {
-            newNode = flowDiagram.addNode(DEFAULT_NODE_TEXT,
+            newNode = flowDiagram.addNode(getDefaultNodeText(),
                     (int) selectedNode.getX() + NODE_SPACING_X,
                     (int) selectedNode.getY());
         } else {
@@ -882,7 +885,7 @@ public class FlowCanvas extends JPanel implements MouseListener, MouseMotionList
                 maxX = Math.max(maxX, (int) n.getX());
                 minY = Math.min(minY, (int) n.getY());
             }
-            newNode = flowDiagram.addNode(DEFAULT_NODE_TEXT, maxX + NODE_SPACING_X, minY);
+            newNode = flowDiagram.addNode(getDefaultNodeText(), maxX + NODE_SPACING_X, minY);
         }
 
         flowDiagram.selectNode(newNode);
@@ -1058,16 +1061,16 @@ public class FlowCanvas extends JPanel implements MouseListener, MouseMotionList
 
     private void showConnectionPopup(int x, int y, FlowConnection connection) {
         JPopupMenu popup = new JPopupMenu();
-        JMenuItem edit = new JMenuItem("Edit Connection...");
+        JMenuItem edit = new JMenuItem(I18n.t("canvas.connection.edit"));
         edit.addActionListener(ev -> openConnectionDialog(connection));
         popup.add(edit);
 
-        JMenuItem reverse = new JMenuItem("Reverse Direction");
+        JMenuItem reverse = new JMenuItem(I18n.t("canvas.connection.reverse"));
         reverse.addActionListener(ev -> reverseDirection(connection));
         popup.add(reverse);
 
         popup.addSeparator();
-        JMenuItem dirFromTo = new JMenuItem("Direction: FROM → TO");
+        JMenuItem dirFromTo = new JMenuItem(I18n.t("canvas.connection.dir.fromto"));
         dirFromTo.addActionListener(ev -> {
             connection.setDirectionStyle(FlowConnection.DirectionStyle.FROM_TO);
             if (flowDiagram != null) {
@@ -1078,7 +1081,7 @@ public class FlowCanvas extends JPanel implements MouseListener, MouseMotionList
         });
         popup.add(dirFromTo);
 
-        JMenuItem dirToFrom = new JMenuItem("Direction: TO → FROM");
+        JMenuItem dirToFrom = new JMenuItem(I18n.t("canvas.connection.dir.tofrom"));
         dirToFrom.addActionListener(ev -> {
             connection.setDirectionStyle(FlowConnection.DirectionStyle.TO_FROM);
             if (flowDiagram != null) {
@@ -1089,7 +1092,7 @@ public class FlowCanvas extends JPanel implements MouseListener, MouseMotionList
         });
         popup.add(dirToFrom);
 
-        JMenuItem dirBi = new JMenuItem("Direction: Bidirectional");
+        JMenuItem dirBi = new JMenuItem(I18n.t("canvas.connection.dir.bidirectional"));
         dirBi.addActionListener(ev -> {
             connection.setDirectionStyle(FlowConnection.DirectionStyle.BIDIRECTIONAL);
             if (flowDiagram != null) {
@@ -1100,7 +1103,7 @@ public class FlowCanvas extends JPanel implements MouseListener, MouseMotionList
         });
         popup.add(dirBi);
 
-        JMenuItem dirNone = new JMenuItem("Direction: None");
+        JMenuItem dirNone = new JMenuItem(I18n.t("canvas.connection.dir.none"));
         dirNone.addActionListener(ev -> {
             connection.setDirectionStyle(FlowConnection.DirectionStyle.NONE);
             if (flowDiagram != null) {
@@ -1112,10 +1115,10 @@ public class FlowCanvas extends JPanel implements MouseListener, MouseMotionList
         popup.add(dirNone);
 
         popup.addSeparator();
-        JMenuItem lineColorItem = new JMenuItem("Change Line Color...");
+        JMenuItem lineColorItem = new JMenuItem(I18n.t("canvas.connection.changeline"));
         lineColorItem.addActionListener(ev -> {
             Color initial = parseHexColor(connection.getLineColorHex(), CONNECTION_COLOR);
-            Color chosen = chooseColor("Select Line Color", initial);
+            Color chosen = chooseColor(I18n.t("canvas.color.selectline"), initial);
             if (chosen != null) {
                 connection.setLineColorHex(colorToHex(chosen));
                 if (flowDiagram != null) {
@@ -1127,10 +1130,10 @@ public class FlowCanvas extends JPanel implements MouseListener, MouseMotionList
         });
         popup.add(lineColorItem);
 
-        JMenuItem arrowColorItem = new JMenuItem("Change Arrow Color...");
+        JMenuItem arrowColorItem = new JMenuItem(I18n.t("canvas.connection.changearrow"));
         arrowColorItem.addActionListener(ev -> {
             Color initial = parseHexColor(connection.getArrowColorHex(), CONNECTION_COLOR);
-            Color chosen = chooseColor("Select Arrow Color", initial);
+            Color chosen = chooseColor(I18n.t("canvas.color.selectarrow"), initial);
             if (chosen != null) {
                 connection.setArrowColorHex(colorToHex(chosen));
                 if (flowDiagram != null) {
@@ -1233,8 +1236,8 @@ public class FlowCanvas extends JPanel implements MouseListener, MouseMotionList
 private void showNodePopup(int x, int y, FlowNode node) {
     JPopupMenu popup = new JPopupMenu();
 
-    // Novo: iniciar/cancelar modo de conexão
-    JMenuItem connectItem = new JMenuItem("Conectar para...");
+    // Connection mode menu items
+    JMenuItem connectItem = new JMenuItem(I18n.t("canvas.connect.to"));
     connectItem.addActionListener(ev -> {
         connectStartNode = node;
         connectMouseWorld = null;
@@ -1243,7 +1246,7 @@ private void showNodePopup(int x, int y, FlowNode node) {
     });
     popup.add(connectItem);
     if (connectStartNode != null) {
-        JMenuItem cancelConnect = new JMenuItem("Cancelar modo de conexão");
+        JMenuItem cancelConnect = new JMenuItem(I18n.t("canvas.connect.cancel"));
         cancelConnect.addActionListener(ev -> {
             connectStartNode = null;
             connectMouseWorld = null;
@@ -1254,10 +1257,10 @@ private void showNodePopup(int x, int y, FlowNode node) {
 
     popup.addSeparator();
 
-    JMenuItem fillColorItem = new JMenuItem("Mudar cor do preenchimento...");
+    JMenuItem fillColorItem = new JMenuItem(I18n.t("canvas.change.fill"));
     fillColorItem.addActionListener(ev -> {
         Color initial = parseHexColor(node.getFillColorHex(), NODE_COLOR);
-        Color chosen = chooseColor("Selecione a cor de preenchimento", initial);
+        Color chosen = chooseColor(I18n.t("canvas.color.selectfill"), initial);
         if (chosen != null) {
             node.setFillColorHex(colorToHex(chosen));
             repaint();
@@ -1265,10 +1268,10 @@ private void showNodePopup(int x, int y, FlowNode node) {
     });
     popup.add(fillColorItem);
 
-    JMenuItem borderColorItem = new JMenuItem("Mudar cor da borda...");
+    JMenuItem borderColorItem = new JMenuItem(I18n.t("canvas.change.border"));
     borderColorItem.addActionListener(ev -> {
         Color initial = parseHexColor(node.getBorderColorHex(), CONNECTION_COLOR);
-        Color chosen = chooseColor("Selecione a cor da borda", initial);
+        Color chosen = chooseColor(I18n.t("canvas.color.selectborder"), initial);
         if (chosen != null) {
             node.setBorderColorHex(colorToHex(chosen));
             repaint();
@@ -1276,7 +1279,7 @@ private void showNodePopup(int x, int y, FlowNode node) {
     });
     popup.add(borderColorItem);
 
-    JMenuItem textColorItem = new JMenuItem("Texto: cor e fonte...");
+    JMenuItem textColorItem = new JMenuItem(I18n.t("canvas.text.color.font"));
     textColorItem.addActionListener(ev -> {
         Window window = SwingUtilities.getWindowAncestor(this);
         Frame owner = (window instanceof Frame) ? (Frame) window : null;
@@ -1301,7 +1304,7 @@ private void showNodePopup(int x, int y, FlowNode node) {
     popup.add(textColorItem);
 
     popup.addSeparator();
-    JMenu shapeMenu = new JMenu("Forma");
+    JMenu shapeMenu = new JMenu(I18n.t("canvas.shape"));
     for (FlowNode.NodeShape s : FlowNode.NodeShape.values()) {
         JMenuItem item = new JMenuItem(s.name());
         item.addActionListener(ev -> {
@@ -1313,31 +1316,31 @@ private void showNodePopup(int x, int y, FlowNode node) {
     popup.add(shapeMenu);
 
     // Resize submenu
-    JMenu sizeMenu = new JMenu("Tamanho");
+    JMenu sizeMenu = new JMenu(I18n.t("canvas.size"));
 
-    JMenuItem incW = new JMenuItem("Aumentar largura (+10)");
+    JMenuItem incW = new JMenuItem(I18n.t("canvas.size.incW"));
     incW.addActionListener(ev -> { node.setWidth(node.getWidth() + 10); repaint(); });
     sizeMenu.add(incW);
 
-    JMenuItem decW = new JMenuItem("Diminuir largura (-10)");
+    JMenuItem decW = new JMenuItem(I18n.t("canvas.size.decW"));
     decW.addActionListener(ev -> { node.setWidth(node.getWidth() - 10); repaint(); });
     sizeMenu.add(decW);
 
-    JMenuItem incH = new JMenuItem("Aumentar altura (+10)");
+    JMenuItem incH = new JMenuItem(I18n.t("canvas.size.incH"));
     incH.addActionListener(ev -> { node.setHeight(node.getHeight() + 10); repaint(); });
     sizeMenu.add(incH);
 
-    JMenuItem decH = new JMenuItem("Diminuir altura (-10)");
+    JMenuItem decH = new JMenuItem(I18n.t("canvas.size.decH"));
     decH.addActionListener(ev -> { node.setHeight(node.getHeight() - 10); repaint(); });
     sizeMenu.add(decH);
 
     sizeMenu.addSeparator();
 
-    JMenuItem setSize = new JMenuItem("Definir tamanho...");
+    JMenuItem setSize = new JMenuItem(I18n.t("canvas.size.set"));
     setSize.addActionListener(ev -> {
-        String wStr = JOptionPane.showInputDialog(this, "Largura (px):", node.getWidth());
+        String wStr = JOptionPane.showInputDialog(this, I18n.t("canvas.node.width"), node.getWidth());
         if (wStr == null) return;
-        String hStr = JOptionPane.showInputDialog(this, "Altura (px):", node.getHeight());
+        String hStr = JOptionPane.showInputDialog(this, I18n.t("canvas.node.height"), node.getHeight());
         if (hStr == null) return;
         try {
             int wv = Integer.parseInt(wStr.trim());
@@ -1346,14 +1349,14 @@ private void showNodePopup(int x, int y, FlowNode node) {
             node.setHeight(hv);
             repaint();
         } catch (NumberFormatException ex) {
-            JOptionPane.showMessageDialog(this, "Valores inválidos. Use números inteiros.", "Erro", JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(this, I18n.t("canvas.invalid.values"), I18n.t("canvas.error"), JOptionPane.ERROR_MESSAGE);
         }
     });
     sizeMenu.add(setSize);
 
     popup.add(sizeMenu);
 
-    JMenuItem resetColors = new JMenuItem("Resetar cores");
+    JMenuItem resetColors = new JMenuItem(I18n.t("canvas.reset.colors"));
     resetColors.addActionListener(ev -> {
         node.setFillColorHex("#3a3a3a");
         node.setBorderColorHex("#666666");
@@ -1417,15 +1420,15 @@ private Color chooseColor(String title, Color initial) {
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.insets = new Insets(4,4,4,4);
         gbc.gridx = 0; gbc.gridy = 0; gbc.anchor = GridBagConstraints.EAST;
-        panel.add(new JLabel("Descrição:"), gbc);
+        panel.add(new JLabel(I18n.t("canvas.timeline.edit.desc")), gbc);
         gbc.gridx = 1; gbc.gridy = 0; gbc.fill = GridBagConstraints.HORIZONTAL; gbc.weightx = 1.0;
         panel.add(labelField, gbc);
         gbc.gridx = 0; gbc.gridy = 1; gbc.weightx = 0; gbc.fill = GridBagConstraints.NONE; gbc.anchor = GridBagConstraints.EAST;
-        panel.add(new JLabel("Data e hora:"), gbc);
+        panel.add(new JLabel(I18n.t("canvas.timeline.edit.datetime")), gbc);
         gbc.gridx = 1; gbc.gridy = 1; gbc.fill = GridBagConstraints.HORIZONTAL; gbc.weightx = 1.0;
         panel.add(dateSpinner, gbc);
 
-        int res = JOptionPane.showConfirmDialog(this, panel, "Editar evento da linha do tempo", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+        int res = JOptionPane.showConfirmDialog(this, panel, I18n.t("canvas.timeline.edit.title"), JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
         if (res == JOptionPane.OK_OPTION) {
             String newLabel = labelField.getText() != null ? labelField.getText().trim() : "";
             Date newTs = (Date) dateSpinner.getValue();

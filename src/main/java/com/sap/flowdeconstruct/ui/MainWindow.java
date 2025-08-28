@@ -18,6 +18,8 @@ import com.sap.flowdeconstruct.ui.components.FlowCanvas;
 import com.sap.flowdeconstruct.export.MarkdownExporter;
 import com.sap.flowdeconstruct.importer.MarkdownImporter;
 import com.sap.flowdeconstruct.ui.dialogs.ImportDialog;
+import com.sap.flowdeconstruct.i18n.I18n;
+import com.sap.flowdeconstruct.ui.dialogs.SettingsDialog;
 
 /**
  * Main application window containing the flow canvas and all UI components
@@ -34,6 +36,7 @@ public class MainWindow extends JFrame implements KeyListener {
     private FlowCanvas canvas;
     private JLabel breadcrumbLabel;
     private JLabel helpHintLabel;
+    private JButton settingsButton;
     private JPanel helpOverlay;
     private boolean helpVisible = false;
     
@@ -64,7 +67,7 @@ public class MainWindow extends JFrame implements KeyListener {
     }
     
     private void initializeWindow() {
-        setTitle("FlowDeconstruct - Ultra-fast flow mapping");
+        setTitle(I18n.t("app.name") + " - " + I18n.t("app.tagline"));
         setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
         setSize(1200, 800);
         setMinimumSize(new Dimension(800, 600));
@@ -88,10 +91,10 @@ public class MainWindow extends JFrame implements KeyListener {
         
         // Create and set menu bar
         JMenuBar menuBar = new JMenuBar();
-        JMenu fileMenu = new JMenu("File");
-        JMenuItem saveMdItem = new JMenuItem("Save as Markdown");
+        JMenu fileMenu = new JMenu(I18n.t("menu.file"));
+        JMenuItem saveMdItem = new JMenuItem(I18n.t("menu.file.saveMd"));
         saveMdItem.addActionListener(e -> saveAsMarkdown());
-        JMenuItem loadMdItem = new JMenuItem("Load from Markdown");
+        JMenuItem loadMdItem = new JMenuItem(I18n.t("menu.file.loadMd"));
         loadMdItem.addActionListener(e -> importFlow());
         fileMenu.add(saveMdItem);
         fileMenu.add(loadMdItem);
@@ -153,6 +156,14 @@ public class MainWindow extends JFrame implements KeyListener {
         System.out.println("MainWindow: Toolbar buttons: " + toolbar.getComponentCount());
         System.out.println("MainWindow: Canvas visible: " + canvas.isVisible());
         System.out.println("MainWindow: ScrollPane visible: " + scrollPane.isVisible());
+
+        // Listen for locale changes to update UI strings dynamically
+        I18n.addChangeListener(new I18n.LocaleChangeListener() {
+            @Override
+            public void onLocaleChanged(java.util.Locale newLocale) {
+                SwingUtilities.invokeLater(() -> refreshTexts());
+            }
+        });
     }
     
     private JPanel createTopBar() {
@@ -161,16 +172,31 @@ public class MainWindow extends JFrame implements KeyListener {
         topBar.setBorder(BorderFactory.createEmptyBorder(8, 12, 8, 12));
         
         // Breadcrumb on the left
-        breadcrumbLabel = new JLabel("Main Flow");
+        breadcrumbLabel = new JLabel(I18n.t("main.breadcrumb.main"));
         breadcrumbLabel.setForeground(TEXT_COLOR);
         breadcrumbLabel.setFont(MONO_FONT);
         topBar.add(breadcrumbLabel, BorderLayout.WEST);
         
-        // Help hint on the right
-        helpHintLabel = new JLabel("Press ? for shortcuts");
+        // Right side panel with help hint and settings gear
+        JPanel rightPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
+        rightPanel.setOpaque(false);
+        
+        helpHintLabel = new JLabel(I18n.t("main.help.hint"));
         helpHintLabel.setForeground(TEXT_COLOR.darker());
         helpHintLabel.setFont(MONO_FONT.deriveFont(Font.ITALIC));
-        topBar.add(helpHintLabel, BorderLayout.EAST);
+        rightPanel.add(helpHintLabel);
+        
+        settingsButton = new JButton("\u2699"); // Gear unicode
+        settingsButton.setToolTipText(I18n.t("settings.title"));
+        settingsButton.setFont(MONO_FONT.deriveFont(Font.PLAIN, 14f));
+        settingsButton.setForeground(TEXT_COLOR);
+        settingsButton.setBackground(new Color(0x3a, 0x3a, 0x3a));
+        settingsButton.setFocusPainted(false);
+        settingsButton.setBorder(BorderFactory.createEmptyBorder(4, 8, 4, 8));
+        settingsButton.addActionListener(e -> openSettingsDialog());
+        rightPanel.add(settingsButton);
+        
+        topBar.add(rightPanel, BorderLayout.EAST);
         
         return topBar;
     }
@@ -181,22 +207,22 @@ public class MainWindow extends JFrame implements KeyListener {
         toolbar.setBorder(BorderFactory.createEmptyBorder(4, 8, 4, 8));
         
         // Create Node button
-        JButton createNodeBtn = createToolbarButton("+ Node", "Create new node (Tab)", e -> createNode());
+        JButton createNodeBtn = createToolbarButton(I18n.t("main.toolbar.node"), I18n.t("help.shortcuts.1"), e -> createNode());
         toolbar.add(createNodeBtn);
         
         // Drill Down button
-        JButton drillDownBtn = createToolbarButton("↓ Subflow", "Drill down to subflow (Ctrl+Enter)", e -> drillDownToSubflow());
+        JButton drillDownBtn = createToolbarButton(I18n.t("main.toolbar.drill"), I18n.t("help.shortcuts.5"), e -> drillDownToSubflow());
         toolbar.add(drillDownBtn);
         
         // Add Note button
-        JButton addNoteBtn = createToolbarButton("Note", "Add note to selected node (Ctrl+N)", e -> addNoteToSelectedNode());
+        JButton addNoteBtn = createToolbarButton(I18n.t("main.toolbar.note"), I18n.t("help.shortcuts.6"), e -> addNoteToSelectedNode());
         toolbar.add(addNoteBtn);
         
         // Separator
         toolbar.add(createSeparator());
         
         // Timeline Mode selector
-        JLabel modeLabel = new JLabel("Mode:");
+        JLabel modeLabel = new JLabel(I18n.t("main.mode.label"));
         modeLabel.setForeground(TEXT_COLOR);
         modeLabel.setFont(MONO_FONT.deriveFont(10f));
         toolbar.add(modeLabel);
@@ -217,22 +243,22 @@ public class MainWindow extends JFrame implements KeyListener {
         toolbar.add(createSeparator());
         
         // Export button
-        JButton exportBtn = createToolbarButton("Export", "Export flow (Ctrl+E)", e -> exportFlow());
+        JButton exportBtn = createToolbarButton(I18n.t("main.toolbar.export"), I18n.t("help.shortcuts.7"), e -> exportFlow());
         toolbar.add(exportBtn);
         
         // Prompt from Transcription button
-        JButton promptBtn = createToolbarButton("Prompt", "Generate Markdown prompt from transcription (Ctrl+G)", e -> openTranscriptionPromptDialog());
+        JButton promptBtn = createToolbarButton(I18n.t("main.toolbar.prompt"), I18n.t("help.shortcuts.8"), e -> openTranscriptionPromptDialog());
         toolbar.add(promptBtn);
         
         // Back button
-        JButton backBtn = createToolbarButton("< Back", "Go back (Esc)", e -> handleEscape());
+        JButton backBtn = createToolbarButton(I18n.t("main.toolbar.back"), I18n.t("help.shortcuts.10"), e -> handleEscape());
         toolbar.add(backBtn);
         
         // Separator
         toolbar.add(createSeparator());
         
         // Help button
-        JButton helpBtn = createToolbarButton("? Help", "Show keyboard shortcuts (?)", e -> toggleHelpOverlay());
+        JButton helpBtn = createToolbarButton(I18n.t("main.toolbar.help"), I18n.t("help.shortcuts.11"), e -> toggleHelpOverlay());
         toolbar.add(helpBtn);
         
         return toolbar;
@@ -352,6 +378,13 @@ public class MainWindow extends JFrame implements KeyListener {
                         } else {
                             createNode();
                             return true;
+                        }
+                        break;
+                    case KeyEvent.VK_ENTER:
+                        if (e.isControlDown()) {
+                            drillDownToSubflow();
+                        } else {
+                            startEditingSelectedNode();
                         }
                         break;
                     case KeyEvent.VK_ESCAPE:
@@ -721,5 +754,35 @@ public class MainWindow extends JFrame implements KeyListener {
                     : "Main Flow";
             breadcrumbLabel.setText(label);
         }
+    }
+    
+    // Refresh texts after locale changes
+    private void refreshTexts() {
+    // Update window title and basic labels
+    setTitle(I18n.t("app.name") + " - " + I18n.t("app.tagline"));
+    if (breadcrumbLabel != null) breadcrumbLabel.setText(I18n.t("main.breadcrumb.main"));
+    if (helpHintLabel != null) helpHintLabel.setText(I18n.t("main.help.hint"));
+    if (settingsButton != null) settingsButton.setToolTipText(I18n.t("settings.title"));
+    
+    // Update menu texts
+    JMenuBar mb = getJMenuBar();
+    if (mb != null && mb.getMenuCount() > 0) {
+    JMenu fileMenu = mb.getMenu(0);
+    if (fileMenu != null) {
+    fileMenu.setText(I18n.t("menu.file"));
+    if (fileMenu.getItemCount() >= 2) {
+    fileMenu.getItem(0).setText(I18n.t("menu.file.saveMd"));
+    fileMenu.getItem(1).setText(I18n.t("menu.file.loadMd"));
+    }
+    }
+    }
+    
+    revalidate();
+    repaint();
+    }
+    
+    private void openSettingsDialog() {
+    SettingsDialog dialog = new SettingsDialog(this);
+    dialog.setVisible(true);
     }
 }

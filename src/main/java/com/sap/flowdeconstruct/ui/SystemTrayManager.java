@@ -5,12 +5,14 @@ import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.image.BufferedImage;
+import java.util.Locale;
+import com.sap.flowdeconstruct.i18n.I18n;
 
 /**
  * Manages system tray integration for FlowDeconstruct
  * Provides always-accessible entry point as specified in PRD
  */
-public class SystemTrayManager {
+public class SystemTrayManager implements I18n.LocaleChangeListener {
     
     private final MainWindow mainWindow;
     private TrayIcon trayIcon;
@@ -21,6 +23,7 @@ public class SystemTrayManager {
         this.mainWindow = mainWindow;
         this.initialized = false;
         initializeSystemTray();
+        I18n.addChangeListener(this);
     }
     
     public boolean isInitialized() {
@@ -43,7 +46,7 @@ public class SystemTrayManager {
         PopupMenu popup = createPopupMenu();
         
         // Create tray icon
-        trayIcon = new TrayIcon(trayImage, "FlowDeconstruct - Ultra-fast flow mapping", popup);
+        trayIcon = new TrayIcon(trayImage, I18n.t("tray.tooltip"), popup);
         trayIcon.setImageAutoSize(true);
         
         // Add double-click listener to show main window
@@ -104,14 +107,14 @@ public class SystemTrayManager {
         PopupMenu popup = new PopupMenu();
         
         // Open FlowDeconstruct
-        MenuItem openItem = new MenuItem("Open FlowDeconstruct");
+        MenuItem openItem = new MenuItem(I18n.t("tray.open"));
         openItem.addActionListener(e -> showMainWindow());
         popup.add(openItem);
         
         popup.addSeparator();
         
         // New Project
-        MenuItem newProjectItem = new MenuItem("New Project");
+        MenuItem newProjectItem = new MenuItem(I18n.t("tray.new"));
         newProjectItem.addActionListener(e -> {
             showMainWindow();
             mainWindow.createNewProject();
@@ -123,12 +126,12 @@ public class SystemTrayManager {
         popup.addSeparator();
         
         // About
-        MenuItem aboutItem = new MenuItem("About FlowDeconstruct");
+        MenuItem aboutItem = new MenuItem(I18n.t("tray.about"));
         aboutItem.addActionListener(e -> showAboutDialog());
         popup.add(aboutItem);
         
         // Exit
-        MenuItem exitItem = new MenuItem("Exit");
+        MenuItem exitItem = new MenuItem(I18n.t("tray.exit"));
         exitItem.addActionListener(e -> exitApplication());
         popup.add(exitItem);
         
@@ -148,20 +151,8 @@ public class SystemTrayManager {
     
     private void showAboutDialog() {
         SwingUtilities.invokeLater(() -> {
-            String message = "FlowDeconstruct v1.0.0\n\n" +
-                           "Ultra-fast hierarchical flow mapping tool\n" +
-                           "for technical triage specialists\n\n" +
-                           "Developed for SAP Mission Critical Center\n\n" +
-                           "Keyboard Shortcuts:\n" +
-                           "• Tab - Create connected node\n" +
-                           "• Ctrl+Enter - Drill down to subflow\n" +
-                           "• Ctrl+N - Add note to selected node\n" +
-                           "• Ctrl+E - Export flow\n" +
-                           "• Arrow Keys - Navigate nodes\n" +
-                           "• Esc - Go back / Cancel\n" +
-                           "• ? - Show help";
-            
-            JOptionPane.showMessageDialog(null, message, "About FlowDeconstruct", 
+            String message = I18n.t("about.message", "1.0.0");
+            JOptionPane.showMessageDialog(null, message, I18n.t("about.title"), 
                                         JOptionPane.INFORMATION_MESSAGE);
         });
     }
@@ -193,6 +184,17 @@ public class SystemTrayManager {
     public void cleanup() {
         if (systemTray != null && trayIcon != null) {
             systemTray.remove(trayIcon);
+        }
+    }
+
+    @Override
+    public void onLocaleChanged(Locale newLocale) {
+        // Update tooltip and popup texts
+        if (trayIcon != null) {
+            trayIcon.setToolTip(I18n.t("tray.tooltip"));
+            // Rebuild popup to refresh labels
+            PopupMenu pm = createPopupMenu();
+            trayIcon.setPopupMenu(pm);
         }
     }
 }

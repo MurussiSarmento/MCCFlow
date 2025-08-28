@@ -3,6 +3,7 @@ package com.sap.flowdeconstruct;
 import com.sap.flowdeconstruct.ui.MainWindow;
 import com.sap.flowdeconstruct.ui.SystemTrayManager;
 import com.sap.flowdeconstruct.core.ProjectManager;
+import com.sap.flowdeconstruct.i18n.I18n;
 
 import javax.swing.*;
 import java.awt.*;
@@ -38,6 +39,9 @@ public class FlowDeconstructApp {
             // Fallback to default
         }
         
+        // Initialize i18n before creating UI
+        I18n.initFromPreferences();
+        
         // Ensure we're on the Event Dispatch Thread
         SwingUtilities.invokeLater(() -> {
             new FlowDeconstructApp().initialize();
@@ -49,9 +53,8 @@ public class FlowDeconstructApp {
         boolean traySupported = SystemTray.isSupported();
         if (!traySupported) {
             JOptionPane.showMessageDialog(null, 
-                "System tray is not supported on this platform.\n" +
-                "FlowDeconstruct will start with the main window visible.", 
-                "System Tray Unavailable", 
+                I18n.t("systemtray.unavailable.message"), 
+                I18n.t("systemtray.unavailable.title"), 
                 JOptionPane.INFORMATION_MESSAGE);
         }
         
@@ -85,7 +88,7 @@ public class FlowDeconstructApp {
         
         if (traySupported && trayManager != null && trayManager.isInitialized()) {
             // Provide a gentle hint that app lives in the tray after being closed
-            trayManager.showNotification(APP_NAME, "Running in system tray. Close window to minimize.");
+            trayManager.showNotification(I18n.t("app.name"), I18n.t("tray.tooltip"));
         }
         
         System.out.println(APP_NAME + " v" + APP_VERSION + " initialized successfully.");

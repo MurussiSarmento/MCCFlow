@@ -19,6 +19,12 @@ if (Test-Path "target\classes") {
 }
 New-Item -ItemType Directory -Path "target\classes" -Force | Out-Null
 
+# Copy resources into classes so ResourceBundle and others are available at runtime
+Write-Host "Copying resources..." -ForegroundColor Yellow
+if (Test-Path "src\main\resources") {
+    Copy-Item -Recurse -Force "src\main\resources\*" "target\classes\" -ErrorAction SilentlyContinue
+}
+
 $libDir = "target\lib"
 if (!(Test-Path $libDir)) {
     New-Item -ItemType Directory -Path $libDir -Force | Out-Null
