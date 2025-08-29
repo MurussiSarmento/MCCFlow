@@ -9,6 +9,9 @@ import com.sap.flowdeconstruct.importer.MarkdownImporter;
 import com.sap.flowdeconstruct.ui.components.FlowCanvas;
 import java.io.File;
 import java.io.IOException;
+import javax.swing.filechooser.FileNameExtensionFilter;
+
+import com.sap.flowdeconstruct.i18n.I18n;
 
 public class ImportDialog extends JDialog implements KeyListener {
 
@@ -23,7 +26,7 @@ public class ImportDialog extends JDialog implements KeyListener {
     private boolean confirmed = false;
 
     public ImportDialog(Frame parent) {
-        super(parent, "Import Flow from Markdown", true);
+        super(parent, I18n.t("import.dialog.title"), true);
         initializeDialog();
         setupComponents();
         setupKeyboardHandling();
@@ -44,7 +47,7 @@ public class ImportDialog extends JDialog implements KeyListener {
         titlePanel.setBackground(BACKGROUND_COLOR);
         titlePanel.setBorder(BorderFactory.createEmptyBorder(12, 16, 8, 16));
 
-        JLabel titleLabel = new JLabel("Import Flow Diagram");
+        JLabel titleLabel = new JLabel(I18n.t("import.dialog.header"));
         titleLabel.setForeground(TEXT_COLOR);
         titleLabel.setFont(MONO_FONT.deriveFont(Font.BOLD, 14f));
         titlePanel.add(titleLabel);
@@ -79,7 +82,7 @@ public class ImportDialog extends JDialog implements KeyListener {
         JPanel section = new JPanel(new BorderLayout());
         section.setBackground(BACKGROUND_COLOR);
     
-        JLabel label = new JLabel("Import from:");
+        JLabel label = new JLabel(I18n.t("import.dialog.from"));
         label.setForeground(TEXT_COLOR);
         label.setFont(MONO_FONT);
         section.add(label, BorderLayout.NORTH);
@@ -100,7 +103,7 @@ public class ImportDialog extends JDialog implements KeyListener {
         ));
         filePathField.setText("");
     
-        JButton browseButton = createStyledButton("Browse...");
+        JButton browseButton = createStyledButton(I18n.t("import.dialog.browse"));
         browseButton.addActionListener(e -> browseForFile());
     
         pathPanel.add(filePathField);
@@ -115,7 +118,7 @@ public class ImportDialog extends JDialog implements KeyListener {
         JPanel section = new JPanel(new BorderLayout());
         section.setBackground(BACKGROUND_COLOR);
 
-        JLabel label = new JLabel("Preview:");
+        JLabel label = new JLabel(I18n.t("import.dialog.preview"));
         label.setForeground(TEXT_COLOR);
         label.setFont(MONO_FONT);
         section.add(label, BorderLayout.NORTH);
@@ -134,31 +137,18 @@ public class ImportDialog extends JDialog implements KeyListener {
         return section;
     }
 
-    private JButton createStyledButton(String text) {
-        JButton button = new JButton(text);
-        button.setBackground(ACCENT_COLOR);
-        button.setForeground(TEXT_COLOR);
-        button.setFont(MONO_FONT);
-        button.setFocusPainted(false);
-        button.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(ACCENT_COLOR.darker(), 1),
-            BorderFactory.createEmptyBorder(6, 12, 6, 12)
-        ));
-        return button;
-    }
-
     private JPanel createButtonPanel() {
         JPanel panel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         panel.setBackground(BACKGROUND_COLOR);
         panel.setBorder(BorderFactory.createEmptyBorder(8, 16, 16, 16));
 
-        JButton cancelButton = createStyledButton("Cancel (Esc)");
+        JButton cancelButton = createStyledButton(I18n.t("import.dialog.cancel"));
         cancelButton.addActionListener(e -> {
             confirmed = false;
             dispose();
         });
 
-        JButton importButton = createStyledButton("Import (Ctrl+Enter)");
+        JButton importButton = createStyledButton(I18n.t("import.dialog.import"));
         importButton.addActionListener(e -> {
             confirmed = true;
             dispose();
@@ -170,10 +160,27 @@ public class ImportDialog extends JDialog implements KeyListener {
         return panel;
     }
 
+    private JButton createStyledButton(String text) {
+        JButton button = new JButton(text);
+        button.setBackground(PANEL_COLOR);
+        button.setForeground(TEXT_COLOR);
+        button.setFont(MONO_FONT);
+        button.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(ACCENT_COLOR.darker(), 1),
+            BorderFactory.createEmptyBorder(6, 12, 6, 12)
+        ));
+        button.setFocusPainted(false);
+        button.addMouseListener(new java.awt.event.MouseAdapter() {
+            @Override public void mouseEntered(java.awt.event.MouseEvent e) { button.setBackground(ACCENT_COLOR.darker()); }
+            @Override public void mouseExited(java.awt.event.MouseEvent e) { button.setBackground(PANEL_COLOR); }
+        });
+        return button;
+    }
+
     private void browseForFile() {
         JFileChooser fileChooser = new JFileChooser();
         fileChooser.setFileSelectionMode(JFileChooser.FILES_ONLY);
-        fileChooser.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter("Markdown files", "md"));
+        fileChooser.setFileFilter(new FileNameExtensionFilter(I18n.t("import.dialog.filetype.markdown"), "md"));
 
         int result = fileChooser.showOpenDialog(this);
         if (result == JFileChooser.APPROVE_OPTION) {
@@ -190,7 +197,7 @@ public class ImportDialog extends JDialog implements KeyListener {
             previewCanvas.setFlowDiagram(previewDiagram);
             previewCanvas.repaint();
         } catch (IOException e) {
-            JOptionPane.showMessageDialog(this, "Error loading preview: " + e.getMessage(), "Preview Error", JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(this, I18n.t("import.dialog.preview.error", e.getMessage()), I18n.t("import.dialog.preview.error.title"), JOptionPane.ERROR_MESSAGE);
         }
     }
 

@@ -1,6 +1,7 @@
 package com.sap.flowdeconstruct.ui.dialogs;
 
 import com.sap.flowdeconstruct.ai.PromptBuilder;
+import com.sap.flowdeconstruct.i18n.I18n;
 
 import javax.swing.*;
 import javax.swing.event.DocumentEvent;
@@ -25,7 +26,7 @@ public class TranscriptionPromptDialog extends JDialog implements KeyListener {
     private final PromptBuilder promptBuilder;
 
     public TranscriptionPromptDialog(Frame parent) {
-        super(parent, "Generate Prompt from Transcription", true);
+        super(parent, I18n.t("prompt.dialog.title"), true);
 
         this.promptBuilder = new PromptBuilder();
 
@@ -39,7 +40,7 @@ public class TranscriptionPromptDialog extends JDialog implements KeyListener {
         JPanel titlePanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         titlePanel.setBackground(BACKGROUND_COLOR);
         titlePanel.setBorder(BorderFactory.createEmptyBorder(12, 16, 8, 16));
-        JLabel titleLabel = new JLabel("Transcription → Prompt (Markdown Schema)");
+        JLabel titleLabel = new JLabel(I18n.t("prompt.dialog.header"));
         titleLabel.setForeground(TEXT_COLOR);
         titleLabel.setFont(MONO_FONT.deriveFont(Font.BOLD, 14f));
         titlePanel.add(titleLabel);
@@ -55,7 +56,7 @@ public class TranscriptionPromptDialog extends JDialog implements KeyListener {
         JPanel transcriptionPanel = new JPanel(new BorderLayout());
         transcriptionPanel.setBackground(BACKGROUND_COLOR);
         transcriptionPanel.setBorder(BorderFactory.createEmptyBorder(0, 16, 8, 16));
-        JLabel transcriptionLabel = new JLabel("Transcription (paste or type here):");
+        JLabel transcriptionLabel = new JLabel(I18n.t("prompt.dialog.transcription.label"));
         transcriptionLabel.setForeground(TEXT_COLOR);
         transcriptionLabel.setFont(MONO_FONT);
         transcriptionPanel.add(transcriptionLabel, BorderLayout.NORTH);
@@ -81,7 +82,7 @@ public class TranscriptionPromptDialog extends JDialog implements KeyListener {
         JPanel previewPanel = new JPanel(new BorderLayout());
         previewPanel.setBackground(BACKGROUND_COLOR);
         previewPanel.setBorder(BorderFactory.createEmptyBorder(0, 16, 16, 16));
-        JLabel previewLabel = new JLabel("Prompt Preview (read-only):");
+        JLabel previewLabel = new JLabel(I18n.t("prompt.dialog.preview.label"));
         previewLabel.setForeground(TEXT_COLOR);
         previewLabel.setFont(MONO_FONT);
         previewPanel.add(previewLabel, BorderLayout.NORTH);
@@ -110,9 +111,9 @@ public class TranscriptionPromptDialog extends JDialog implements KeyListener {
         buttonPanel.setBackground(BACKGROUND_COLOR);
         buttonPanel.setBorder(BorderFactory.createEmptyBorder(8, 16, 16, 16));
 
-        JButton copyButton = createStyledButton("Copy Prompt (Ctrl+C)");
+        JButton copyButton = createStyledButton(I18n.t("prompt.dialog.copy"));
         copyButton.addActionListener(e -> copyPromptToClipboard());
-        JButton closeButton = createStyledButton("Close (Esc)");
+        JButton closeButton = createStyledButton(I18n.t("prompt.dialog.close"));
         closeButton.addActionListener(e -> dispose());
 
         buttonPanel.add(copyButton);
@@ -162,7 +163,7 @@ public class TranscriptionPromptDialog extends JDialog implements KeyListener {
         String prompt = promptPreviewArea.getText();
         Clipboard clipboard = Toolkit.getDefaultToolkit().getSystemClipboard();
         clipboard.setContents(new StringSelection(prompt), null);
-        JOptionPane.showMessageDialog(this, "Prompt copied to clipboard!", "Copied", JOptionPane.INFORMATION_MESSAGE);
+        JOptionPane.showMessageDialog(this, I18n.t("prompt.dialog.copied"), I18n.t("prompt.dialog.copied.title"), JOptionPane.INFORMATION_MESSAGE);
     }
 
     @Override

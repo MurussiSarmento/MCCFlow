@@ -6,6 +6,8 @@ import javax.swing.event.ChangeListener;
 import java.awt.*;
 import java.awt.event.KeyEvent;
 
+import com.sap.flowdeconstruct.i18n.I18n;
+
 public class TextStyleDialog extends JDialog {
     // Dark theme constants (consistent with other dialogs)
     private static final Color BACKGROUND_COLOR = new Color(0x2d, 0x2d, 0x2d);
@@ -27,12 +29,12 @@ public class TextStyleDialog extends JDialog {
     private JLabel previewLabel;
 
     public TextStyleDialog(Frame owner, Color initialColor, String initialFamily, int initialSize, int initialStyle) {
-        super(owner, "Estilo do texto", true);
+        super(owner, I18n.t("textstyle.title"), true);
         setDefaultCloseOperation(DISPOSE_ON_CLOSE);
         getContentPane().setBackground(BACKGROUND_COLOR);
 
         // Title
-        JLabel title = new JLabel("Texto: cor e fonte");
+        JLabel title = new JLabel(I18n.t("textstyle.header"));
         title.setForeground(TEXT_COLOR);
         title.setFont(MONO_FONT.deriveFont(Font.BOLD, 14f));
         JPanel titlePanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
@@ -49,10 +51,10 @@ public class TextStyleDialog extends JDialog {
         // Color section
         JPanel colorRow = new JPanel(new FlowLayout(FlowLayout.LEFT));
         colorRow.setBackground(BACKGROUND_COLOR);
-        JLabel colorLabel = new JLabel("Cor do texto:");
+        JLabel colorLabel = new JLabel(I18n.t("textstyle.color"));
         colorLabel.setForeground(TEXT_COLOR);
         colorLabel.setFont(MONO_FONT);
-        JButton colorBtn = createStyledButton("Escolher cor...");
+        JButton colorBtn = createStyledButton(I18n.t("textstyle.chooseColor"));
         selectedColor = initialColor != null ? initialColor : new Color(0xcc, 0xcc, 0xcc);
         colorPreview = new JPanel();
         colorPreview.setPreferredSize(new Dimension(28, 18));
@@ -68,7 +70,7 @@ public class TextStyleDialog extends JDialog {
         // Font family
         JPanel familyRow = new JPanel(new FlowLayout(FlowLayout.LEFT));
         familyRow.setBackground(BACKGROUND_COLOR);
-        JLabel familyLabel = new JLabel("Fonte:");
+        JLabel familyLabel = new JLabel(I18n.t("textstyle.font"));
         familyLabel.setForeground(TEXT_COLOR);
         familyLabel.setFont(MONO_FONT);
         String[] families = GraphicsEnvironment.getLocalGraphicsEnvironment().getAvailableFontFamilyNames();
@@ -87,7 +89,7 @@ public class TextStyleDialog extends JDialog {
         // Size and style
         JPanel styleRow = new JPanel(new FlowLayout(FlowLayout.LEFT));
         styleRow.setBackground(BACKGROUND_COLOR);
-        JLabel sizeLabel = new JLabel("Tamanho:");
+        JLabel sizeLabel = new JLabel(I18n.t("textstyle.size"));
         sizeLabel.setForeground(TEXT_COLOR);
         sizeLabel.setFont(MONO_FONT);
         sizeSpinner = new JSpinner(new SpinnerNumberModel(Math.max(6, Math.min(96, initialSize > 0 ? initialSize : 12)), 6, 96, 1));
@@ -98,11 +100,11 @@ public class TextStyleDialog extends JDialog {
             ((JSpinner.DefaultEditor) editor).getTextField().setForeground(TEXT_COLOR);
             ((JSpinner.DefaultEditor) editor).getTextField().setCaretColor(TEXT_COLOR);
         }
-        boldCheck = new JCheckBox("Negrito");
+        boldCheck = new JCheckBox(I18n.t("textstyle.bold"));
         boldCheck.setBackground(BACKGROUND_COLOR);
         boldCheck.setForeground(TEXT_COLOR);
         boldCheck.setFont(MONO_FONT);
-        italicCheck = new JCheckBox("Itálico");
+        italicCheck = new JCheckBox(I18n.t("textstyle.italic"));
         italicCheck.setBackground(BACKGROUND_COLOR);
         italicCheck.setForeground(TEXT_COLOR);
         italicCheck.setFont(MONO_FONT);
@@ -119,7 +121,7 @@ public class TextStyleDialog extends JDialog {
         // Preview section
         JPanel previewRow = new JPanel(new BorderLayout());
         previewRow.setBackground(BACKGROUND_COLOR);
-        JLabel previewTitle = new JLabel("Pré-visualização:");
+        JLabel previewTitle = new JLabel(I18n.t("textstyle.preview"));
         previewTitle.setForeground(TEXT_COLOR);
         previewTitle.setFont(MONO_FONT);
         JPanel previewPanel = new JPanel(new BorderLayout());
@@ -128,7 +130,7 @@ public class TextStyleDialog extends JDialog {
                 BorderFactory.createLineBorder(ACCENT_COLOR.darker(), 1),
                 BorderFactory.createEmptyBorder(12, 12, 12, 12)
         ));
-        previewLabel = new JLabel("Texto de exemplo: Aa Bb Cc 0123 !?");
+        previewLabel = new JLabel(I18n.t("textstyle.sample"));
         previewLabel.setForeground(selectedColor);
         previewPanel.add(previewLabel, BorderLayout.CENTER);
         previewRow.add(previewTitle, BorderLayout.NORTH);
@@ -138,8 +140,8 @@ public class TextStyleDialog extends JDialog {
         JPanel buttons = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         buttons.setBackground(BACKGROUND_COLOR);
         buttons.setBorder(BorderFactory.createEmptyBorder(8, 16, 16, 16));
-        JButton cancel = createStyledButton("Cancelar");
-        JButton ok = createStyledButton("OK");
+        JButton cancel = createStyledButton(I18n.t("dialog.cancel"));
+        JButton ok = createStyledButton(I18n.t("dialog.ok"));
         cancel.addActionListener(e -> { confirmed = false; dispose(); });
         ok.addActionListener(e -> { confirmed = true; dispose(); });
         buttons.add(cancel);
@@ -183,7 +185,7 @@ public class TextStyleDialog extends JDialog {
     }
 
     private void chooseColor() {
-        Color c = JColorChooser.showDialog(getOwner(), "Selecione a cor do texto", selectedColor);
+        Color c = JColorChooser.showDialog(getOwner(), I18n.t("textstyle.color.dialog.title"), selectedColor);
         if (c != null) {
             selectedColor = c;
             colorPreview.setBackground(c);

@@ -1,6 +1,7 @@
 package com.sap.flowdeconstruct.ui.dialogs;
 
 import com.sap.flowdeconstruct.model.FlowConnection;
+import com.sap.flowdeconstruct.i18n.I18n;
 
 import javax.swing.*;
 import java.awt.*;
@@ -13,8 +14,9 @@ public class ConnectionDialog extends JDialog {
     private boolean confirmed = false;
 
     public ConnectionDialog(Frame owner, FlowConnection connection) {
-        super(owner, "Edit Connection", true);
-        setDefaultCloseOperation(DISPOSE_ON_CLOSE);
+-        super(owner, "Edit Connection", true);
++        super(owner, I18n.t("connection.dialog.title"), true);
+         setDefaultCloseOperation(DISPOSE_ON_CLOSE);
 
         directionCombo = new JComboBox<>(FlowConnection.DirectionStyle.values());
         directionCombo.setSelectedItem(connection.getDirectionStyle());
@@ -28,18 +30,18 @@ public class ConnectionDialog extends JDialog {
         gbc.fill = GridBagConstraints.HORIZONTAL;
 
         gbc.gridx = 0; gbc.gridy = 0;
-        form.add(new JLabel("Direction:"), gbc);
+        form.add(new JLabel(I18n.t("connection.dialog.direction")), gbc);
         gbc.gridx = 1; gbc.weightx = 1.0;
         form.add(directionCombo, gbc);
 
         gbc.gridx = 0; gbc.gridy = 1; gbc.weightx = 0;
-        form.add(new JLabel("Protocol:"), gbc);
+        form.add(new JLabel(I18n.t("connection.dialog.protocol")), gbc);
         gbc.gridx = 1; gbc.weightx = 1.0;
         form.add(protocolField, gbc);
 
         JPanel buttons = new JPanel(new FlowLayout(FlowLayout.RIGHT));
-        JButton ok = new JButton("OK");
-        JButton cancel = new JButton("Cancel");
+        JButton ok = new JButton(I18n.t("dialog.ok"));
+        JButton cancel = new JButton(I18n.t("dialog.cancel"));
         buttons.add(cancel);
         buttons.add(ok);
 

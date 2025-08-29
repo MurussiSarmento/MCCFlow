@@ -6,6 +6,8 @@ import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
 import java.io.File;
 
+import com.sap.flowdeconstruct.i18n.I18n;
+
 /**
  * Dialog for exporting flow diagrams to PDF or Markdown
  * Follows the dark theme design from design.md
@@ -20,8 +22,8 @@ public class ExportDialog extends JDialog implements KeyListener {
     private static final Font MONO_FONT = new Font(Font.MONOSPACED, Font.PLAIN, 12);
     
     public enum ExportFormat {
-        PDF("PDF Document", ".pdf"),
-        MARKDOWN("Markdown", ".md");
+        PDF(I18n.t("export.dialog.format.pdf"), ".pdf"),
+        MARKDOWN(I18n.t("export.dialog.format.md"), ".md");
         
         private final String displayName;
         private final String extension;
@@ -47,7 +49,7 @@ public class ExportDialog extends JDialog implements KeyListener {
     private boolean confirmed = false;
     
     public ExportDialog(Frame parent) {
-        super(parent, "Export Flow", true);
+        super(parent, I18n.t("export.dialog.title"), true);
         
         initializeDialog();
         setupComponents();
@@ -69,7 +71,7 @@ public class ExportDialog extends JDialog implements KeyListener {
         titlePanel.setBackground(BACKGROUND_COLOR);
         titlePanel.setBorder(BorderFactory.createEmptyBorder(12, 16, 8, 16));
         
-        JLabel titleLabel = new JLabel("Export Flow Diagram");
+        JLabel titleLabel = new JLabel(I18n.t("export.dialog.header"));
         titleLabel.setForeground(TEXT_COLOR);
         titleLabel.setFont(MONO_FONT.deriveFont(Font.BOLD, 14f));
         titlePanel.add(titleLabel);
@@ -109,7 +111,7 @@ public class ExportDialog extends JDialog implements KeyListener {
         JPanel section = new JPanel(new BorderLayout());
         section.setBackground(BACKGROUND_COLOR);
         
-        JLabel label = new JLabel("Export to:");
+        JLabel label = new JLabel(I18n.t("export.dialog.to"));
         label.setForeground(TEXT_COLOR);
         label.setFont(MONO_FONT);
         section.add(label, BorderLayout.NORTH);
@@ -129,7 +131,7 @@ public class ExportDialog extends JDialog implements KeyListener {
         ));
         filePathField.setText(System.getProperty("user.home") + File.separator + "flow_diagram.pdf");
         
-        JButton browseButton = createStyledButton("Browse...");
+        JButton browseButton = createStyledButton(I18n.t("export.dialog.browse"));
         browseButton.addActionListener(e -> browseForFile());
         
         pathPanel.add(filePathField, BorderLayout.CENTER);
@@ -145,7 +147,7 @@ public class ExportDialog extends JDialog implements KeyListener {
         JPanel section = new JPanel(new BorderLayout());
         section.setBackground(BACKGROUND_COLOR);
         
-        JLabel label = new JLabel("Format:");
+        JLabel label = new JLabel(I18n.t("export.dialog.format"));
         label.setForeground(TEXT_COLOR);
         label.setFont(MONO_FONT);
         section.add(label, BorderLayout.NORTH);
@@ -180,7 +182,7 @@ public class ExportDialog extends JDialog implements KeyListener {
         section.setBackground(BACKGROUND_COLOR);
         section.setLayout(new BoxLayout(section, BoxLayout.Y_AXIS));
         
-        JLabel label = new JLabel("Options:");
+        JLabel label = new JLabel(I18n.t("export.dialog.options"));
         label.setForeground(TEXT_COLOR);
         label.setFont(MONO_FONT);
         label.setAlignmentX(Component.LEFT_ALIGNMENT);
@@ -188,14 +190,14 @@ public class ExportDialog extends JDialog implements KeyListener {
         
         section.add(Box.createVerticalStrut(8));
         
-        includeNotesCheckBox = createStyledCheckBox("Include node notes");
+        includeNotesCheckBox = createStyledCheckBox(I18n.t("export.dialog.include.notes"));
         includeNotesCheckBox.setSelected(true);
         includeNotesCheckBox.setAlignmentX(Component.LEFT_ALIGNMENT);
         section.add(includeNotesCheckBox);
         
         section.add(Box.createVerticalStrut(4));
         
-        includeSubflowsCheckBox = createStyledCheckBox("Include subflows");
+        includeSubflowsCheckBox = createStyledCheckBox(I18n.t("export.dialog.include.subflows"));
         includeSubflowsCheckBox.setSelected(true);
         includeSubflowsCheckBox.setAlignmentX(Component.LEFT_ALIGNMENT);
         section.add(includeSubflowsCheckBox);
@@ -218,14 +220,14 @@ public class ExportDialog extends JDialog implements KeyListener {
         panel.setBorder(BorderFactory.createEmptyBorder(8, 16, 16, 16));
         
         // Cancel button
-        JButton cancelButton = createStyledButton("Cancel (Esc)");
+        JButton cancelButton = createStyledButton(I18n.t("dialog.cancel"));
         cancelButton.addActionListener(e -> {
             confirmed = false;
             dispose();
         });
         
         // Export button
-        JButton exportButton = createStyledButton("Export (Ctrl+Enter)");
+        JButton exportButton = createStyledButton(I18n.t("export.dialog.export"));
         exportButton.addActionListener(e -> {
             confirmed = true;
             dispose();
@@ -271,7 +273,7 @@ public class ExportDialog extends JDialog implements KeyListener {
         
         ExportFormat selectedFormat = (ExportFormat) formatComboBox.getSelectedItem();
         if (selectedFormat != null) {
-            fileChooser.setSelectedFile(new File("flow_diagram" + selectedFormat.getExtension()));
+            fileChooser.setSelectedFile(new File(I18n.t("export.dialog.default.filename") + selectedFormat.getExtension()));
         }
         
         int result = fileChooser.showSaveDialog(this);

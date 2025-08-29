@@ -7,6 +7,8 @@ import java.awt.event.ActionListener;
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
 
+import com.sap.flowdeconstruct.i18n.I18n;
+
 /**
  * Dialog for adding/editing notes on flow nodes
  * Follows the dark theme design from design.md
@@ -24,7 +26,7 @@ public class NoteDialog extends JDialog implements KeyListener {
     private boolean confirmed = false;
     
     public NoteDialog(Frame parent, String initialText) {
-        super(parent, "Add Note", true);
+        super(parent, I18n.t("note.dialog.title"), true);
         
         initializeDialog();
         setupComponents(initialText);
@@ -48,7 +50,7 @@ public class NoteDialog extends JDialog implements KeyListener {
         titlePanel.setBackground(BACKGROUND_COLOR);
         titlePanel.setBorder(BorderFactory.createEmptyBorder(12, 16, 8, 16));
         
-        JLabel titleLabel = new JLabel("Node Notes");
+        JLabel titleLabel = new JLabel(I18n.t("note.dialog.header"));
         titleLabel.setForeground(TEXT_COLOR);
         titleLabel.setFont(MONO_FONT.deriveFont(Font.BOLD, 14f));
         titlePanel.add(titleLabel);
@@ -95,14 +97,14 @@ public class NoteDialog extends JDialog implements KeyListener {
         panel.setBorder(BorderFactory.createEmptyBorder(8, 16, 16, 16));
         
         // Cancel button
-        JButton cancelButton = createStyledButton("Cancel (Esc)");
+        JButton cancelButton = createStyledButton(I18n.t("dialog.cancel") + " (Esc)");
         cancelButton.addActionListener(e -> {
             confirmed = false;
             dispose();
         });
         
         // Save button
-        JButton saveButton = createStyledButton("Save (Ctrl+Enter)");
+        JButton saveButton = createStyledButton(I18n.t("note.dialog.save") + " (Ctrl+Enter)");
         saveButton.addActionListener(e -> {
             confirmed = true;
             dispose();

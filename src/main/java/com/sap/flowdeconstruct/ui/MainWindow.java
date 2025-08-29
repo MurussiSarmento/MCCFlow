@@ -316,7 +316,7 @@ public class MainWindow extends JFrame implements KeyListener {
         helpPanel.setLayout(new BoxLayout(helpPanel, BoxLayout.Y_AXIS));
         
         // Title
-        JLabel titleLabel = new JLabel("FlowDeconstruct Shortcuts");
+        JLabel titleLabel = new JLabel(I18n.t("help.title"));
         titleLabel.setForeground(TEXT_COLOR);
         titleLabel.setFont(MONO_FONT.deriveFont(Font.BOLD, 14f));
         titleLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
@@ -326,17 +326,17 @@ public class MainWindow extends JFrame implements KeyListener {
         
         // Shortcuts
         String[] shortcuts = {
-            "Tab        - Create connected node",
-            "Shift+Tab  - Create isolated node",
-            "Enter      - Edit selected node",
-            "Type text  - Auto-edit selected node",
-            "Ctrl+Enter - Drill down to subflow",
-            "Ctrl+N     - Add note to selected node",
-            "Ctrl+E     - Export flow",
-            "Ctrl+G     - Generate prompt from transcription",
-            "Arrow Keys - Navigate nodes",
-            "Esc        - Go back / Cancel",
-            "?          - Show this help"
+            I18n.t("help.shortcuts.1"),
+            I18n.t("help.shortcuts.2"),
+            I18n.t("help.shortcuts.3"),
+            I18n.t("help.shortcuts.4"),
+            I18n.t("help.shortcuts.5"),
+            I18n.t("help.shortcuts.6"),
+            I18n.t("help.shortcuts.7"),
+            I18n.t("help.shortcuts.8"),
+            I18n.t("help.shortcuts.9"),
+            I18n.t("help.shortcuts.10"),
+            I18n.t("help.shortcuts.11")
         };
         
         for (String shortcut : shortcuts) {
@@ -487,13 +487,13 @@ public class MainWindow extends JFrame implements KeyListener {
                 try {
                     // Use ProjectManager.saveToMarkdown for consistency
                     projectManager.saveToMarkdown(filePath, includeNotes, includeSubflows);
-                    JOptionPane.showMessageDialog(this, "Flow exported to Markdown successfully!", "Export Success", JOptionPane.INFORMATION_MESSAGE);
+                    JOptionPane.showMessageDialog(this, I18n.t("export.success"), I18n.t("menu.file.saveMd"), JOptionPane.INFORMATION_MESSAGE);
                 } catch (Exception ex) {
-                    JOptionPane.showMessageDialog(this, "Error exporting to Markdown: " + ex.getMessage(), "Export Error", JOptionPane.ERROR_MESSAGE);
+                    JOptionPane.showMessageDialog(this, I18n.t("export.error", ex.getMessage()), I18n.t("menu.file.saveMd"), JOptionPane.ERROR_MESSAGE);
                 }
             } else {
                 // Handle other formats like PDF here if implemented
-                JOptionPane.showMessageDialog(this, "Export format not supported yet.", "Export", JOptionPane.INFORMATION_MESSAGE);
+                JOptionPane.showMessageDialog(this, I18n.t("export.unsupported"), I18n.t("main.toolbar.export"), JOptionPane.INFORMATION_MESSAGE);
             }
         }
     }
@@ -583,22 +583,22 @@ public class MainWindow extends JFrame implements KeyListener {
             try {
                 FlowDiagram importedFlow = projectManager.loadFromMarkdown(filePath);
                 setCurrentFlow(importedFlow);
-                JOptionPane.showMessageDialog(this, "Flow imported from Markdown successfully!", "Import Success", JOptionPane.INFORMATION_MESSAGE);
+                JOptionPane.showMessageDialog(this, I18n.t("import.success"), I18n.t("menu.file.loadMd"), JOptionPane.INFORMATION_MESSAGE);
             } catch (Exception ex) {
-                JOptionPane.showMessageDialog(this, "Error importing from Markdown: " + ex.getMessage(), "Import Error", JOptionPane.ERROR_MESSAGE);
+                JOptionPane.showMessageDialog(this, I18n.t("import.error", ex.getMessage()), I18n.t("menu.file.loadMd"), JOptionPane.ERROR_MESSAGE);
             }
         }
     }
     
     private void saveAsMarkdown() {
         if (currentFlow == null) {
-            JOptionPane.showMessageDialog(this, "No flow to save!", "Save Error", JOptionPane.WARNING_MESSAGE);
+            JOptionPane.showMessageDialog(this, I18n.t("save.none"), I18n.t("menu.file.saveMd"), JOptionPane.WARNING_MESSAGE);
             return;
         }
         
         JFileChooser fileChooser = new JFileChooser();
-        fileChooser.setDialogTitle("Save as Markdown");
-        fileChooser.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter("Markdown files (*.md)", "md"));
+        fileChooser.setDialogTitle(I18n.t("save.dialog.title"));
+        fileChooser.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter("Markdown", "md"));
         
         if (fileChooser.showSaveDialog(this) == JFileChooser.APPROVE_OPTION) {
             String filePath = fileChooser.getSelectedFile().getPath();
@@ -608,9 +608,9 @@ public class MainWindow extends JFrame implements KeyListener {
             
             try {
                 projectManager.saveToMarkdown(filePath, true, true); // Default to include notes and subflows
-                JOptionPane.showMessageDialog(this, "Flow saved as Markdown successfully!", "Save Success", JOptionPane.INFORMATION_MESSAGE);
+                JOptionPane.showMessageDialog(this, I18n.t("save.success"), I18n.t("menu.file.saveMd"), JOptionPane.INFORMATION_MESSAGE);
             } catch (Exception ex) {
-                JOptionPane.showMessageDialog(this, "Error saving as Markdown: " + ex.getMessage(), "Save Error", JOptionPane.ERROR_MESSAGE);
+                JOptionPane.showMessageDialog(this, I18n.t("save.error", ex.getMessage()), I18n.t("menu.file.saveMd"), JOptionPane.ERROR_MESSAGE);
             }
         }
     }

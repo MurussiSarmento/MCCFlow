@@ -40,7 +40,7 @@ public class FlowCanvas extends JPanel implements MouseListener, MouseMotionList
     private static final int NODE_SPACING_Y = 80;
     private static final int CANVAS_MARGIN = 50;
     private static String getDefaultNodeText() {
-        return I18n.t("canvas.node.default");
+        return I18n.t("canvas.default.node");
     }
     
     private FlowDiagram flowDiagram;
@@ -1061,16 +1061,16 @@ public class FlowCanvas extends JPanel implements MouseListener, MouseMotionList
 
     private void showConnectionPopup(int x, int y, FlowConnection connection) {
         JPopupMenu popup = new JPopupMenu();
-        JMenuItem edit = new JMenuItem(I18n.t("canvas.connection.edit"));
+        JMenuItem edit = new JMenuItem(I18n.t("canvas.popup.connection.edit"));
         edit.addActionListener(ev -> openConnectionDialog(connection));
         popup.add(edit);
 
-        JMenuItem reverse = new JMenuItem(I18n.t("canvas.connection.reverse"));
+        JMenuItem reverse = new JMenuItem(I18n.t("canvas.popup.connection.reverse"));
         reverse.addActionListener(ev -> reverseDirection(connection));
         popup.add(reverse);
 
         popup.addSeparator();
-        JMenuItem dirFromTo = new JMenuItem(I18n.t("canvas.connection.dir.fromto"));
+        JMenuItem dirFromTo = new JMenuItem(I18n.t("canvas.popup.connection.direction.from"));
         dirFromTo.addActionListener(ev -> {
             connection.setDirectionStyle(FlowConnection.DirectionStyle.FROM_TO);
             if (flowDiagram != null) {
@@ -1081,7 +1081,7 @@ public class FlowCanvas extends JPanel implements MouseListener, MouseMotionList
         });
         popup.add(dirFromTo);
 
-        JMenuItem dirToFrom = new JMenuItem(I18n.t("canvas.connection.dir.tofrom"));
+        JMenuItem dirToFrom = new JMenuItem(I18n.t("canvas.popup.connection.direction.to"));
         dirToFrom.addActionListener(ev -> {
             connection.setDirectionStyle(FlowConnection.DirectionStyle.TO_FROM);
             if (flowDiagram != null) {
@@ -1092,7 +1092,7 @@ public class FlowCanvas extends JPanel implements MouseListener, MouseMotionList
         });
         popup.add(dirToFrom);
 
-        JMenuItem dirBi = new JMenuItem(I18n.t("canvas.connection.dir.bidirectional"));
+        JMenuItem dirBi = new JMenuItem(I18n.t("canvas.popup.connection.direction.bi"));
         dirBi.addActionListener(ev -> {
             connection.setDirectionStyle(FlowConnection.DirectionStyle.BIDIRECTIONAL);
             if (flowDiagram != null) {
@@ -1103,7 +1103,7 @@ public class FlowCanvas extends JPanel implements MouseListener, MouseMotionList
         });
         popup.add(dirBi);
 
-        JMenuItem dirNone = new JMenuItem(I18n.t("canvas.connection.dir.none"));
+        JMenuItem dirNone = new JMenuItem(I18n.t("canvas.popup.connection.direction.none"));
         dirNone.addActionListener(ev -> {
             connection.setDirectionStyle(FlowConnection.DirectionStyle.NONE);
             if (flowDiagram != null) {
@@ -1115,7 +1115,7 @@ public class FlowCanvas extends JPanel implements MouseListener, MouseMotionList
         popup.add(dirNone);
 
         popup.addSeparator();
-        JMenuItem lineColorItem = new JMenuItem(I18n.t("canvas.connection.changeline"));
+        JMenuItem lineColorItem = new JMenuItem(I18n.t("canvas.popup.connection.linecolor"));
         lineColorItem.addActionListener(ev -> {
             Color initial = parseHexColor(connection.getLineColorHex(), CONNECTION_COLOR);
             Color chosen = chooseColor(I18n.t("canvas.color.selectline"), initial);
@@ -1130,7 +1130,7 @@ public class FlowCanvas extends JPanel implements MouseListener, MouseMotionList
         });
         popup.add(lineColorItem);
 
-        JMenuItem arrowColorItem = new JMenuItem(I18n.t("canvas.connection.changearrow"));
+        JMenuItem arrowColorItem = new JMenuItem(I18n.t("canvas.popup.connection.arrowcolor"));
         arrowColorItem.addActionListener(ev -> {
             Color initial = parseHexColor(connection.getArrowColorHex(), CONNECTION_COLOR);
             Color chosen = chooseColor(I18n.t("canvas.color.selectarrow"), initial);
@@ -1246,7 +1246,7 @@ private void showNodePopup(int x, int y, FlowNode node) {
     });
     popup.add(connectItem);
     if (connectStartNode != null) {
-        JMenuItem cancelConnect = new JMenuItem(I18n.t("canvas.connect.cancel"));
+        JMenuItem cancelConnect = new JMenuItem(I18n.t("canvas.cancel.connect"));
         cancelConnect.addActionListener(ev -> {
             connectStartNode = null;
             connectMouseWorld = null;
