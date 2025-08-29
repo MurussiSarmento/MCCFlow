@@ -17,6 +17,12 @@ if (!(Test-Path "target\classes")) {
     New-Item -ItemType Directory -Path "target\classes" -Force | Out-Null
 }
 
+# Copy resources so ResourceBundle files are packaged into the JAR
+Write-Host "Copying resources..." -ForegroundColor Yellow
+if (Test-Path "src\main\resources") {
+    Copy-Item -Recurse -Force "src\main\resources\*" "target\classes\" -ErrorAction SilentlyContinue
+}
+
 $libDir = "target\lib"
 if (!(Test-Path $libDir)) {
     New-Item -ItemType Directory -Path $libDir -Force | Out-Null
@@ -65,7 +71,7 @@ Write-Host "Compiling..." -ForegroundColor Yellow
 $sourceFiles = $javaFiles | ForEach-Object { $_.FullName }
 
 try {
-    & javac -cp $classpath -d "target\classes" @sourceFiles
+    & javac -encoding UTF-8 -cp $classpath -d "target\classes" @sourceFiles
     Write-Host "Compilation successful!" -ForegroundColor Green
 } catch {
     Write-Host "Compilation failed!" -ForegroundColor Red

@@ -64,16 +64,22 @@ public final class I18n {
             // Ensure bundle aligns with default locale
             setLocale(Locale.getDefault());
         }
+        System.out.println("[I18n] initFromPreferences -> " + currentLocale + ", menu.file='" + t("menu.file") + "'");
     }
 
     public static void setLocale(Locale locale) {
         if (locale == null) return;
         currentLocale = locale;
+        // Normalize English to explicit en_US to force bundle resolution to messages_en.properties
+        if ("en".equalsIgnoreCase(currentLocale.getLanguage()) && (currentLocale.getCountry() == null || currentLocale.getCountry().isEmpty())) {
+            currentLocale = new Locale("en", "US");
+        }
         bundle = ResourceBundle.getBundle(BUNDLE_BASE, currentLocale, UTF8_CONTROL);
+        System.out.println("[I18n] setLocale -> " + currentLocale + ", menu.file='" + t("menu.file") + "'");
         // Persist
         Preferences prefs = Preferences.userRoot().node(PREF_NODE);
-        prefs.put(PREF_LANG, locale.getLanguage());
-        prefs.put(PREF_COUNTRY, locale.getCountry());
+        prefs.put(PREF_LANG, currentLocale.getLanguage());
+        prefs.put(PREF_COUNTRY, currentLocale.getCountry());
         // Notify listeners
         for (LocaleChangeListener l : listeners) {
             try { l.onLocaleChanged(currentLocale); } catch (Exception ignored) {}
