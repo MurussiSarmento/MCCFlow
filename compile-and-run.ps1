@@ -1,4 +1,4 @@
-# FlowDeconstruct - Compile and Run Script
+# FlowDeconstruct - Compile and Run Script (Maven-based)
 Write-Host "FlowDeconstruct - Compile and Run" -ForegroundColor Green
 Write-Host "================================" -ForegroundColor Green
 
@@ -12,80 +12,31 @@ if (-not $env:JAVA_HOME) {
 Write-Host "Java version:" -ForegroundColor Yellow
 java -version
 
-# Clean classes to avoid stale outputs
-if (Test-Path "target\classes") {
-    Write-Host "Cleaning target\\classes..." -ForegroundColor Yellow
-    Remove-Item -Recurse -Force "target\classes"
-}
-New-Item -ItemType Directory -Path "target\classes" -Force | Out-Null
-
-# Copy resources into classes so ResourceBundle and others are available at runtime
-Write-Host "Copying resources..." -ForegroundColor Yellow
-if (Test-Path "src\main\resources") {
-    Copy-Item -Recurse -Force "src\main\resources\*" "target\classes\" -ErrorAction SilentlyContinue
-}
-
-$libDir = "target\lib"
-if (!(Test-Path $libDir)) {
-    New-Item -ItemType Directory -Path $libDir -Force | Out-Null
-}
-
-# Download Jackson dependencies
-Write-Host "Downloading dependencies..." -ForegroundColor Yellow
-
-$jacksonVersion = "2.15.2"
-$baseUrl = "https://repo1.maven.org/maven2/com/fasterxml/jackson"
-
-$dependencies = @(
-    @{name="jackson-core"; url="$baseUrl/core/jackson-core/$jacksonVersion/jackson-core-$jacksonVersion.jar"},
-    @{name="jackson-databind"; url="$baseUrl/core/jackson-databind/$jacksonVersion/jackson-databind-$jacksonVersion.jar"},
-    @{name="jackson-annotations"; url="$baseUrl/core/jackson-annotations/$jacksonVersion/jackson-annotations-$jacksonVersion.jar"},
-    @{name="commonmark"; url="https://repo1.maven.org/maven2/org/commonmark/commonmark/0.21.0/commonmark-0.21.0.jar"}
-)
-
-foreach ($dep in $dependencies) {
-    $jarFile = "$libDir\$($dep.name)-$jacksonVersion.jar"
-    if ($dep.name -eq 'commonmark') {
-        $jarFile = "$libDir\commonmark-0.21.0.jar"
-    }
-    if (!(Test-Path $jarFile)) {
-        Write-Host "Downloading $($dep.name)..." -ForegroundColor Cyan
-        try {
-            Invoke-WebRequest -Uri $dep.url -OutFile $jarFile
-        } catch {
-            Write-Host "Failed to download $($dep.name)" -ForegroundColor Red
-        }
-    }
-}
-
-# Build classpath
-$jars = Get-ChildItem -Path $libDir -Filter "*.jar" | ForEach-Object { $_.FullName }
-$classpath = "target\classes" + ";" + ($jars -join ";")
-
-# Find Java files
-$javaFiles = Get-ChildItem -Path "src\main\java" -Filter "*.java" -Recurse
-if ($javaFiles.Count -eq 0) {
-    Write-Host "No Java files found!" -ForegroundColor Red
+# Ensure Maven is available
+$mvnVersion = (& mvn -v 2>&1)
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "Maven not found on PATH. Please install Apache Maven to build and run the project." -ForegroundColor Red
     exit 1
 }
 
-Write-Host "Found $($javaFiles.Count) Java files" -ForegroundColor Green
-
-# Compile
-Write-Host "Compiling..." -ForegroundColor Yellow
-$sourceFiles = $javaFiles | ForEach-Object { $_.FullName }
-
-& javac -encoding UTF-8 -cp $classpath -d "target\classes" @sourceFiles
+# Build with Maven (fetches all dependencies declared in pom.xml)
+Write-Host "Building with Maven (skipping tests)..." -ForegroundColor Yellow
+mvn -DskipTests package
 if ($LASTEXITCODE -ne 0) {
-    Write-Host "Compilation failed! Exit code: $LASTEXITCODE" -ForegroundColor Red
+    Write-Host "Maven build failed!" -ForegroundColor Red
     exit $LASTEXITCODE
 }
-Write-Host "Compilation successful!" -ForegroundColor Green
 
-# Run application
+# Run the shaded JAR produced by the Maven Shade plugin
+$jarPath = "target\FlowDeconstruct.jar"
+if (!(Test-Path $jarPath)) {
+    Write-Host "Shaded JAR not found at $jarPath" -ForegroundColor Red
+    exit 1
+}
+
 Write-Host "Starting application..." -ForegroundColor Yellow
 try {
-    & java -cp $classpath com.sap.flowdeconstruct.FlowDeconstructApp
+    & java -jar $jarPath
 } catch {
     Write-Host "Failed to start application!" -ForegroundColor Red
 }

@@ -1486,4 +1486,25 @@ private Color chooseColor(String title, Color initial) {
             return new Date();
         }
     }
+
+    // Exposed for offscreen export rendering
+    public void setViewOffset(double x, double y) {
+        this.viewOffset.x = x;
+        this.viewOffset.y = y;
+        repaint();
+    }
+
+    public void setZoomLevel(double zoom) {
+        // clamp to a sensible range
+        this.zoomLevel = Math.max(0.1, Math.min(4.0, zoom));
+        repaint();
+    }
+
+    /**
+     * Returns the preferred total height to render the timeline area,
+     * including paddings, matching the on-screen layout.
+     */
+    public int getTimelinePreferredHeight() {
+        return TIMELINE_HEIGHT + 2 * TIMELINE_PADDING;
+    }
 }

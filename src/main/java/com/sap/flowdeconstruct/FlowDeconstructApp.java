@@ -113,6 +113,11 @@ public class FlowDeconstructApp {
         // Register hotkey Ctrl+Shift+F to show/focus window while app has focus
         KeyboardFocusManager.getCurrentKeyboardFocusManager()
             .addKeyEventDispatcher(e -> {
+                // Do not intercept while a Dialog is active (e.g., ExportDialog)
+                Window active = KeyboardFocusManager.getCurrentKeyboardFocusManager().getActiveWindow();
+                if (active instanceof Dialog) {
+                    return false; // let dialog handle it
+                }
                 if (e.getID() == java.awt.event.KeyEvent.KEY_PRESSED &&
                     e.isControlDown() && e.isShiftDown() && 
                     e.getKeyCode() == java.awt.event.KeyEvent.VK_F) {

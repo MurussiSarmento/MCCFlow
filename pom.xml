@@ -57,6 +57,13 @@
             <artifactId>commonmark</artifactId>
             <version>0.21.0</version>
         </dependency>
+        
+        <!-- PPTX generation -->
+        <dependency>
+            <groupId>org.apache.poi</groupId>
+            <artifactId>poi-ooxml</artifactId>
+            <version>5.2.5</version>
+        </dependency>
     </dependencies>
 
     <build>

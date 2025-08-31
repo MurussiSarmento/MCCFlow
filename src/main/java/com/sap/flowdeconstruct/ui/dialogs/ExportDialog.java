@@ -23,7 +23,8 @@ public class ExportDialog extends JDialog implements KeyListener {
     
     public enum ExportFormat {
         PDF(I18n.t("export.dialog.format.pdf"), ".pdf"),
-        MARKDOWN(I18n.t("export.dialog.format.md"), ".md");
+        MARKDOWN(I18n.t("export.dialog.format.md"), ".md"),
+        PPTX(I18n.t("export.dialog.format.pptx"), ".pptx");
         
         private final String displayName;
         private final String extension;
@@ -46,6 +47,8 @@ public class ExportDialog extends JDialog implements KeyListener {
     private JComboBox<ExportFormat> formatComboBox;
     private JCheckBox includeNotesCheckBox;
     private JCheckBox includeSubflowsCheckBox;
+    private JCheckBox includeFlowCheckBox;
+    private JCheckBox includeTimelineCheckBox;
     private boolean confirmed = false;
     
     public ExportDialog(Frame parent) {
@@ -181,27 +184,41 @@ public class ExportDialog extends JDialog implements KeyListener {
         JPanel section = new JPanel();
         section.setBackground(BACKGROUND_COLOR);
         section.setLayout(new BoxLayout(section, BoxLayout.Y_AXIS));
-        
+
         JLabel label = new JLabel(I18n.t("export.dialog.options"));
         label.setForeground(TEXT_COLOR);
         label.setFont(MONO_FONT);
         label.setAlignmentX(Component.LEFT_ALIGNMENT);
         section.add(label);
-        
+
         section.add(Box.createVerticalStrut(8));
-        
+
+        includeFlowCheckBox = createStyledCheckBox(I18n.t("export.dialog.include.flow"));
+        includeFlowCheckBox.setSelected(true);
+        includeFlowCheckBox.setAlignmentX(Component.LEFT_ALIGNMENT);
+        section.add(includeFlowCheckBox);
+
+        section.add(Box.createVerticalStrut(4));
+
+        includeTimelineCheckBox = createStyledCheckBox(I18n.t("export.dialog.include.timeline"));
+        includeTimelineCheckBox.setSelected(true);
+        includeTimelineCheckBox.setAlignmentX(Component.LEFT_ALIGNMENT);
+        section.add(includeTimelineCheckBox);
+
+        section.add(Box.createVerticalStrut(4));
+
         includeNotesCheckBox = createStyledCheckBox(I18n.t("export.dialog.include.notes"));
         includeNotesCheckBox.setSelected(true);
         includeNotesCheckBox.setAlignmentX(Component.LEFT_ALIGNMENT);
         section.add(includeNotesCheckBox);
-        
+
         section.add(Box.createVerticalStrut(4));
-        
+
         includeSubflowsCheckBox = createStyledCheckBox(I18n.t("export.dialog.include.subflows"));
         includeSubflowsCheckBox.setSelected(true);
         includeSubflowsCheckBox.setAlignmentX(Component.LEFT_ALIGNMENT);
         section.add(includeSubflowsCheckBox);
-        
+
         return section;
     }
     
@@ -229,9 +246,28 @@ public class ExportDialog extends JDialog implements KeyListener {
         // Export button
         JButton exportButton = createStyledButton(I18n.t("export.dialog.export"));
         exportButton.addActionListener(e -> {
+            // Ajusta a extensão do arquivo para o formato selecionado antes de confirmar
+            updateFileExtension();
             confirmed = true;
             dispose();
         });
+        
+        // Set default button and add Ctrl+Enter keybinding to trigger export
+        JRootPane root = getRootPane();
+        if (root != null) {
+            root.setDefaultButton(exportButton);
+            InputMap im = root.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW);
+            ActionMap am = root.getActionMap();
+            im.put(KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, Toolkit.getDefaultToolkit().getMenuShortcutKeyMask()), "EXPORT_CONFIRM");
+            am.put("EXPORT_CONFIRM", new AbstractAction() {
+                @Override
+                public void actionPerformed(java.awt.event.ActionEvent e) {
+                    updateFileExtension();
+                    confirmed = true;
+                    dispose();
+                }
+            });
+        }
         
         panel.add(cancelButton);
         panel.add(Box.createHorizontalStrut(8));
@@ -279,7 +315,21 @@ public class ExportDialog extends JDialog implements KeyListener {
         int result = fileChooser.showSaveDialog(this);
         if (result == JFileChooser.APPROVE_OPTION) {
             File selectedFile = fileChooser.getSelectedFile();
-            filePathField.setText(selectedFile.getAbsolutePath());
+            String path = selectedFile.getAbsolutePath();
+            ExportFormat fmt = (ExportFormat) formatComboBox.getSelectedItem();
+            if (fmt != null) {
+                int lastSep = Math.max(path.lastIndexOf(File.separatorChar), path.lastIndexOf('/'));
+                int dotIdx = path.lastIndexOf('.');
+                // Se não houver extensão após o último separador OU a extensão não for a esperada, normaliza para a extensão do formato
+                if (dotIdx <= lastSep || !path.substring(dotIdx).equalsIgnoreCase(fmt.getExtension())) {
+                    if (dotIdx > lastSep) {
+                        path = path.substring(0, dotIdx) + fmt.getExtension();
+                    } else {
+                        path = path + fmt.getExtension();
+                    }
+                }
+            }
+            filePathField.setText(path);
         }
     }
     
@@ -288,13 +338,14 @@ public class ExportDialog extends JDialog implements KeyListener {
         if (selectedFormat != null) {
             String currentPath = filePathField.getText();
             
-            // Remove existing extension
-            int lastDotIndex = currentPath.lastIndexOf('.');
-            if (lastDotIndex > 0) {
-                currentPath = currentPath.substring(0, lastDotIndex);
+            // Considera apenas extensão após o último separador de caminho
+            int lastSep = Math.max(currentPath.lastIndexOf(File.separatorChar), currentPath.lastIndexOf('/'));
+            int dotIdx = currentPath.lastIndexOf('.');
+            if (dotIdx > lastSep) {
+                currentPath = currentPath.substring(0, dotIdx);
             }
             
-            // Add new extension
+            // Adiciona a nova extensão
             filePathField.setText(currentPath + selectedFormat.getExtension());
         }
     }
@@ -302,6 +353,7 @@ public class ExportDialog extends JDialog implements KeyListener {
     private void setupKeyboardHandling() {
         addKeyListener(this);
         setFocusable(true);
+        requestFocusInWindow();
     }
     
     @Override
@@ -310,22 +362,19 @@ public class ExportDialog extends JDialog implements KeyListener {
             confirmed = false;
             dispose();
         } else if (e.getKeyCode() == KeyEvent.VK_ENTER && e.isControlDown()) {
+            // Support Ctrl+Enter as quick confirm from anywhere in dialog
+            updateFileExtension();
             confirmed = true;
             dispose();
         }
     }
     
     @Override
-    public void keyTyped(KeyEvent e) {
-        // Not used
-    }
+    public void keyTyped(KeyEvent e) { }
     
     @Override
-    public void keyReleased(KeyEvent e) {
-        // Not used
-    }
+    public void keyReleased(KeyEvent e) { }
     
-    // Public methods
     public boolean isConfirmed() {
         return confirmed;
     }
@@ -344,5 +393,13 @@ public class ExportDialog extends JDialog implements KeyListener {
     
     public boolean isIncludeSubflows() {
         return includeSubflowsCheckBox.isSelected();
+    }
+    
+    public boolean isIncludeFlow() {
+        return includeFlowCheckBox.isSelected();
+    }
+    
+    public boolean isIncludeTimeline() {
+        return includeTimelineCheckBox.isSelected();
     }
 }

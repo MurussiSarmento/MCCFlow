@@ -14,9 +14,8 @@ public class ConnectionDialog extends JDialog {
     private boolean confirmed = false;
 
     public ConnectionDialog(Frame owner, FlowConnection connection) {
--        super(owner, "Edit Connection", true);
-+        super(owner, I18n.t("connection.dialog.title"), true);
-         setDefaultCloseOperation(DISPOSE_ON_CLOSE);
+        super(owner, I18n.t("connection.dialog.title"), true);
+        setDefaultCloseOperation(DISPOSE_ON_CLOSE);
 
         directionCombo = new JComboBox<>(FlowConnection.DirectionStyle.values());
         directionCombo.setSelectedItem(connection.getDirectionStyle());

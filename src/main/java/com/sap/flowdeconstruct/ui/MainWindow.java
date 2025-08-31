@@ -13,9 +13,12 @@ import java.awt.*;
 import java.awt.event.*;
 import javax.swing.JButton;
 import java.util.Stack;
+import java.io.File;
 
 import com.sap.flowdeconstruct.ui.components.FlowCanvas;
 import com.sap.flowdeconstruct.export.MarkdownExporter;
+import com.sap.flowdeconstruct.export.PdfExporter;
+import com.sap.flowdeconstruct.export.PptxExporter;
 import com.sap.flowdeconstruct.importer.MarkdownImporter;
 import com.sap.flowdeconstruct.ui.dialogs.ImportDialog;
 import com.sap.flowdeconstruct.i18n.I18n;
@@ -366,6 +369,11 @@ public class MainWindow extends JFrame implements KeyListener {
 
         KeyboardFocusManager.getCurrentKeyboardFocusManager().addKeyEventDispatcher(e -> {
             if (e.getID() == KeyEvent.KEY_PRESSED) {
+                // Do not intercept keys while a dialog is focused (e.g., Export dialog)
+                Window activeWindow = KeyboardFocusManager.getCurrentKeyboardFocusManager().getActiveWindow();
+                if (activeWindow instanceof Dialog) {
+                    return false; // let dialog handle keys
+                }
                 switch (e.getKeyCode()) {
                     case KeyEvent.VK_TAB:
                         if (e.isShiftDown()) {
@@ -475,25 +483,75 @@ public class MainWindow extends JFrame implements KeyListener {
         if (canvas != null && canvas.isEditingNode()) {
             canvas.finishEditingNode();
         }
+        System.out.println("[Export] exportFlow invoked");
         
         ExportDialog dialog = new ExportDialog(this);
         dialog.setVisible(true);
+        System.out.println("[Export] ExportDialog closed. confirmed=" + dialog.isConfirmed());
         
         if (dialog.isConfirmed()) {
             String filePath = dialog.getFilePath();
             boolean includeNotes = dialog.isIncludeNotes();
             boolean includeSubflows = dialog.isIncludeSubflows();
-            if (filePath.endsWith(".md")) {
-                try {
-                    // Use ProjectManager.saveToMarkdown for consistency
-                    projectManager.saveToMarkdown(filePath, includeNotes, includeSubflows);
-                    JOptionPane.showMessageDialog(this, I18n.t("export.success"), I18n.t("menu.file.saveMd"), JOptionPane.INFORMATION_MESSAGE);
-                } catch (Exception ex) {
-                    JOptionPane.showMessageDialog(this, I18n.t("export.error", ex.getMessage()), I18n.t("menu.file.saveMd"), JOptionPane.ERROR_MESSAGE);
+            boolean includeFlow = dialog.isIncludeFlow();
+            boolean includeTimeline = dialog.isIncludeTimeline();
+            ExportDialog.ExportFormat fmt = dialog.getSelectedFormat();
+
+            try {
+                // Normaliza caminho e extensão
+                if (filePath == null || filePath.trim().isEmpty()) {
+                    String ext = 
+                        (fmt == ExportDialog.ExportFormat.MARKDOWN) ? ".md" :
+                        (fmt == ExportDialog.ExportFormat.PDF) ? ".pdf" : ".pptx";
+                    filePath = System.getProperty("user.home") + File.separator + "flow_diagram" + ext;
+                } else {
+                    int lastSep = Math.max(filePath.lastIndexOf(File.separatorChar), filePath.lastIndexOf('/'));
+                    int dotIdx = filePath.lastIndexOf('.');
+                    String wantExt = (fmt == ExportDialog.ExportFormat.MARKDOWN) ? ".md" :
+                                     (fmt == ExportDialog.ExportFormat.PDF) ? ".pdf" : ".pptx";
+                    if (dotIdx <= lastSep) {
+                        filePath = filePath + wantExt;
+                    } else {
+                        String curExt = filePath.substring(dotIdx);
+                        if (!curExt.equalsIgnoreCase(wantExt)) {
+                            filePath = filePath.substring(0, dotIdx) + wantExt;
+                        }
+                    }
                 }
-            } else {
-                // Handle other formats like PDF here if implemented
-                JOptionPane.showMessageDialog(this, I18n.t("export.unsupported"), I18n.t("main.toolbar.export"), JOptionPane.INFORMATION_MESSAGE);
+
+                // Garante diretório
+                File target = new File(filePath);
+                File parent = target.getParentFile();
+                if (parent != null && !parent.exists()) {
+                    boolean created = parent.mkdirs();
+                    System.out.println("[Export] parent mkdirs(" + parent + ") => " + created);
+                }
+
+                System.out.println(String.format("[Export] Start: fmt=%s, path=%s, notes=%b, subflows=%b, flow=%b, timeline=%b",
+                        fmt, filePath, includeNotes, includeSubflows, includeFlow, includeTimeline));
+
+                if (fmt == ExportDialog.ExportFormat.MARKDOWN || (filePath != null && filePath.toLowerCase().endsWith(".md"))) {
+                    projectManager.saveToMarkdown(filePath, includeNotes, includeSubflows);
+                    System.out.println("[Export] Markdown written -> " + filePath);
+                    JOptionPane.showMessageDialog(this, I18n.t("export.success") + ":\n" + filePath, I18n.t("menu.file.saveMd"), JOptionPane.INFORMATION_MESSAGE);
+                } else if (fmt == ExportDialog.ExportFormat.PDF || (filePath != null && filePath.toLowerCase().endsWith(".pdf"))) {
+                    PdfExporter pdf = new PdfExporter();
+                    pdf.export(currentFlow, filePath, includeNotes, includeSubflows, includeFlow, includeTimeline);
+                    System.out.println("[Export] PDF written -> " + filePath + ", exists=" + target.exists() + ", size=" + (target.exists()? target.length(): -1));
+                    JOptionPane.showMessageDialog(this, I18n.t("export.success") + ":\n" + filePath, I18n.t("export.dialog.format.pdf"), JOptionPane.INFORMATION_MESSAGE);
+                } else if (fmt == ExportDialog.ExportFormat.PPTX || (filePath != null && filePath.toLowerCase().endsWith(".pptx"))) {
+                    PptxExporter pptx = new PptxExporter();
+                    pptx.export(currentFlow, filePath, includeNotes, includeSubflows, includeFlow, includeTimeline);
+                    System.out.println("[Export] PPTX written -> " + filePath + ", exists=" + target.exists() + ", size=" + (target.exists()? target.length(): -1));
+                    JOptionPane.showMessageDialog(this, I18n.t("export.success") + ":\n" + filePath, I18n.t("export.dialog.format.pptx"), JOptionPane.INFORMATION_MESSAGE);
+                } else {
+                    JOptionPane.showMessageDialog(this, I18n.t("export.unsupported"), I18n.t("main.toolbar.export"), JOptionPane.INFORMATION_MESSAGE);
+                }
+
+                System.out.println("[Export] Done: " + filePath);
+            } catch (Exception ex) {
+                System.err.println("[Export] Error: " + ex);
+                JOptionPane.showMessageDialog(this, I18n.t("export.error", ex.getMessage()), I18n.t("main.toolbar.export"), JOptionPane.ERROR_MESSAGE);
             }
         }
     }
