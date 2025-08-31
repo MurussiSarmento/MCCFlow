@@ -23,6 +23,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.HashSet;
 import java.util.Set;
+import java.awt.Dimension;
 
 public class PptxExporter {
 
@@ -115,8 +116,11 @@ public class PptxExporter {
     }
 
     private void addTitle(XSLFSlide slide, String text) {
+        java.awt.Dimension pg = slide.getSlideShow().getPageSize();
+        int left = 50, right = 50, top = 20, height = 60;
+        int width = Math.max(0, pg.width - left - right);
         XSLFTextBox title = slide.createTextBox();
-        title.setAnchor(new java.awt.Rectangle(50, 20, 1820, 60));
+        title.setAnchor(new java.awt.Rectangle(left, top, width, height));
         XSLFTextParagraph p = title.addNewTextParagraph();
         XSLFTextRun r = p.addNewTextRun();
         r.setText(text);
@@ -125,8 +129,12 @@ public class PptxExporter {
     }
 
     private void addBody(XSLFSlide slide, String text) {
+        java.awt.Dimension pg = slide.getSlideShow().getPageSize();
+        int left = 50, right = 50, top = 100, bottom = 50;
+        int width = Math.max(0, pg.width - left - right);
+        int height = Math.max(0, pg.height - top - bottom);
         XSLFTextBox box = slide.createTextBox();
-        box.setAnchor(new java.awt.Rectangle(50, 100, 1820, 900));
+        box.setAnchor(new java.awt.Rectangle(left, top, width, height));
         XSLFTextParagraph p = box.addNewTextParagraph();
         for (String line : text.split("\n")) {
             XSLFTextRun r = p.addNewTextRun();
@@ -141,7 +149,27 @@ public class PptxExporter {
         byte[] data = baos.toByteArray();
         XSLFPictureData pd = slide.getSlideShow().addPicture(data, PictureData.PictureType.PNG);
         XSLFPictureShape pic = slide.createPicture(pd);
-        pic.setAnchor(new java.awt.Rectangle(50, 100, 1820, 900));
+
+        // Compute available area based on real slide size and margins
+        java.awt.Dimension pg = slide.getSlideShow().getPageSize();
+        int left = 50, right = 50, top = 100, bottom = 50; // keep space for title at top
+        int availW = Math.max(0, pg.width - left - right);
+        int availH = Math.max(0, pg.height - top - bottom);
+
+        int imgW = img.getWidth();
+        int imgH = img.getHeight();
+        if (imgW <= 0 || imgH <= 0 || availW <= 0 || availH <= 0) {
+            // Fallback to full area if something is off
+            pic.setAnchor(new java.awt.Rectangle(left, top, availW, availH));
+            return;
+        }
+        double scale = Math.min((double) availW / imgW, (double) availH / imgH);
+        int drawW = (int) Math.round(imgW * scale);
+        int drawH = (int) Math.round(imgH * scale);
+        int x = left + (availW - drawW) / 2;
+        int y = top + (availH - drawH) / 2;
+
+        pic.setAnchor(new java.awt.Rectangle(x, y, drawW, drawH));
     }
 
     private String buildNotes(FlowDiagram diagram) {
